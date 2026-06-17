@@ -7,6 +7,7 @@ import Link from 'next/link'
 export default function Home() {
   const [items, setItems] = useState<Item[]>([])
   const [category, setCategory] = useState<Category>('食料品')
+  const [supplier, setSupplier] = useState<string>('すべて')
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editStock, setEditStock] = useState<number>(0)
@@ -21,18 +22,24 @@ export default function Home() {
   async function fetchItems() {
     setLoading(true)
     const sb = getSupabaseClient()
-    const { data, error } = await sb
+    const { data } = await sb
       .from('items')
       .select('*')
       .order('category')
       .order('name')
-    console.log('data:', data, 'error:', error)
     if (data) setItems(data)
     setLoading(false)
   }
 
-  const filtered = items.filter((i) => i.category === category)
-  const lowStock = items.filter((i) => i.stock <= i.min_stock)
+  const suppliers = ['すべて', ...Array.from(new Set(items.map((i) => i.supplier).filter(Boolean))).sort()]
+
+  const filtered = items.filter((i) => {
+    if (i.category !== category) return false
+    if (supplier !== 'すべて' && i.supplier !== supplier) return false
+    return true
+  })
+
+  const lowStock = items.filter((i) => i.stock <= i.min_stock && i.min_stock > 0)
 
   function startEdit(item: Item) {
     setEditingId(item.id)
@@ -74,13 +81,13 @@ export default function Home() {
 
   function stockColor(item: Item) {
     if (item.stock === 0) return 'bg-red-100 text-red-700'
-    if (item.stock <= item.min_stock) return 'bg-orange-100 text-orange-700'
+    if (item.min_stock > 0 && item.stock <= item.min_stock) return 'bg-orange-100 text-orange-700'
     return 'bg-green-100 text-green-700'
   }
 
   function stockLabel(item: Item) {
     if (item.stock === 0) return '在庫なし'
-    if (item.stock <= item.min_stock) return '要発注'
+    if (item.min_stock > 0 && item.stock <= item.min_stock) return '要発注'
     return '在庫あり'
   }
 
@@ -119,10 +126,7 @@ export default function Home() {
             </p>
             <ul className="space-y-1">
               {lowStock.map((i) => (
-                <li
-                  key={i.id}
-                  className="text-sm text-red-600 flex justify-between"
-                >
+                <li key={i.id} className="text-sm text-red-600 flex justify-between">
                   <span>{i.name}</span>
                   <span className="font-mono">
                     {i.stock} {i.unit} / 発注点 {i.min_stock}
@@ -138,11 +142,9 @@ export default function Home() {
           {(['食料品', '備品'] as Category[]).map((cat) => (
             <button
               key={cat}
-              onClick={() => setCategory(cat)}
+              onClick={() => { setCategory(cat); setSupplier('すべて') }}
               className={`flex-1 py-3 text-base font-medium transition-colors ${
-                category === cat
-                  ? 'bg-teal-700 text-white'
-                  : 'text-gray-500'
+                category === cat ? 'bg-teal-700 text-white' : 'text-gray-500'
               }`}
             >
               {cat}
@@ -150,16 +152,35 @@ export default function Home() {
           ))}
         </div>
 
+        {/* 仕入先フィルター */}
+        {!loading && (
+          <div className="bg-white rounded-xl shadow-sm p-3">
+            <p className="text-xs text-gray-400 mb-2">仕入先で絞り込み</p>
+            <div className="flex flex-wrap gap-2">
+              {suppliers.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSupplier(s)}
+                  className={`text-sm px-3 py-1.5 rounded-full font-medium transition-colors ${
+                    supplier === s
+                      ? 'bg-teal-700 text-white'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* 在庫リスト */}
         {loading ? (
           <div className="text-center py-12 text-gray-400">読み込み中...</div>
         ) : (
           <div className="space-y-2">
             {filtered.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white rounded-xl shadow-sm overflow-hidden"
-              >
+              <div key={item.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
                 {editingId === item.id ? (
                   <div className="p-4 space-y-3">
                     <p className="font-medium text-gray-800">{item.name}</p>
@@ -167,9 +188,7 @@ export default function Home() {
                       <span className="text-sm text-gray-500">在庫数</span>
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() =>
-                            setEditStock(Math.max(0, editStock - 1))
-                          }
+                          onClick={() => setEditStock(Math.max(0, editStock - 1))}
                           className="w-10 h-10 bg-gray-100 rounded-lg text-xl font-bold text-gray-700 flex items-center justify-center"
                         >
                           −
@@ -177,9 +196,7 @@ export default function Home() {
                         <input
                           type="number"
                           value={editStock}
-                          onChange={(e) =>
-                            setEditStock(Math.max(0, Number(e.target.value)))
-                          }
+                          onChange={(e) => setEditStock(Math.max(0, Number(e.target.value)))}
                           className="w-20 text-center text-xl font-bold border border-gray-200 rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
                           inputMode="numeric"
                         />
@@ -189,9 +206,7 @@ export default function Home() {
                         >
                           ＋
                         </button>
-                        <span className="text-sm text-gray-400">
-                          {item.unit}
-                        </span>
+                        <span className="text-sm text-gray-400">{item.unit}</span>
                       </div>
                     </div>
                     <div className="flex gap-2">
@@ -216,26 +231,18 @@ export default function Home() {
                     className="w-full p-4 flex items-center justify-between"
                   >
                     <div className="text-left">
-                      <p className="font-medium text-gray-800 text-base">
-                        {item.name}
-                      </p>
+                      <p className="font-medium text-gray-800 text-base">{item.name}</p>
                       {item.supplier && (
-                        <p className="text-xs text-gray-400 mt-0.5">
-                          {item.supplier}
-                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">{item.supplier}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${stockColor(item)}`}
-                      >
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stockColor(item)}`}>
                         {stockLabel(item)}
                       </span>
                       <span className="text-lg font-bold text-gray-800 font-mono">
                         {item.stock}
-                        <span className="text-sm font-normal text-gray-400 ml-1">
-                          {item.unit}
-                        </span>
+                        <span className="text-sm font-normal text-gray-400 ml-1">{item.unit}</span>
                       </span>
                       <span className="text-gray-300 text-lg">›</span>
                     </div>
@@ -245,9 +252,7 @@ export default function Home() {
             ))}
 
             {filtered.length === 0 && (
-              <p className="text-center text-gray-400 py-8">
-                商品がありません
-              </p>
+              <p className="text-center text-gray-400 py-8">商品がありません</p>
             )}
           </div>
         )}
