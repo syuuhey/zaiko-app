@@ -96,12 +96,14 @@ export default function Home() {
       <header className="bg-teal-700 text-white shadow-md">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold tracking-wide">在庫管理</h1>
-          <Link
-            href="/admin"
-            className="text-sm bg-white text-teal-700 px-3 py-1.5 rounded-full font-medium"
-          >
-            管理
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/history" className="text-sm bg-white/20 text-white px-3 py-1.5 rounded-full font-medium">
+              履歴
+            </Link>
+            <Link href="/admin" className="text-sm bg-white text-teal-700 px-3 py-1.5 rounded-full font-medium">
+              管理
+            </Link>
+          </div>
         </div>
       </header>
 
