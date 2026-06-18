@@ -214,47 +214,55 @@ export default function AdminPage() {
               <div className="grid grid-cols-3 gap-3">
                 <Field label="現在庫">
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={form.stock}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) =>
-                      setForm({ ...form, stock: Number(e.target.value) })
+                      setForm({ ...form, stock: Number(e.target.value) || 0 })
                     }
                     className={inputClass}
-                    inputMode="numeric"
                   />
                 </Field>
                 <Field label="発注点">
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={form.min_stock}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) =>
-                      setForm({ ...form, min_stock: Number(e.target.value) })
+                      setForm({ ...form, min_stock: Number(e.target.value) || 0 })
                     }
                     className={inputClass}
-                    inputMode="numeric"
                   />
                 </Field>
                 <Field label="適正在庫">
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={form.ideal_stock}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) =>
-                      setForm({ ...form, ideal_stock: Number(e.target.value) })
+                      setForm({ ...form, ideal_stock: Number(e.target.value) || 0 })
                     }
                     className={inputClass}
-                    inputMode="numeric"
                   />
                 </Field>
               </div>
               <Field label="単価（円）">
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={form.unit_price}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) =>
-                    setForm({ ...form, unit_price: Number(e.target.value) })
+                    setForm({ ...form, unit_price: Number(e.target.value) || 0 })
                   }
                   className={inputClass}
-                  inputMode="numeric"
                 />
               </Field>
               <Field label="仕入先">

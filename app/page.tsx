@@ -196,11 +196,13 @@ export default function Home() {
                           −
                         </button>
                         <input
-                          type="number"
-                          value={editStock}
-                          onChange={(e) => setEditStock(Math.max(0, Number(e.target.value)))}
-                          className="w-20 text-center text-xl font-bold border border-gray-200 rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                          type="text"
                           inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={editStock}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => setEditStock(Math.max(0, Number(e.target.value) || 0))}
+                          className="w-20 text-center text-xl font-bold border border-gray-200 rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
                         />
                         <button
                           onClick={() => setEditStock(editStock + 1)}
