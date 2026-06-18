@@ -25,6 +25,7 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [tab, setTab] = useState<Category>('食料品')
+  const [reorderMode, setReorderMode] = useState(false)
 
   useEffect(() => {
     fetchItems()
@@ -36,7 +37,7 @@ export default function AdminPage() {
     const { data } = await sb
       .from('items')
       .select('*')
-      .order('category')
+      .order('sort_order', { nullsFirst: false })
       .order('name')
     if (data) setItems(data)
     setLoading(false)
@@ -64,6 +65,24 @@ export default function AdminPage() {
     setShowForm(true)
   }
 
+  async function moveItem(id: string, direction: 'up' | 'down') {
+    const idx = filtered.findIndex((i) => i.id === id)
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (targetIdx < 0 || targetIdx >= filtered.length) return
+
+    const a = filtered[idx]
+    const b = filtered[targetIdx]
+    const aOrder = a.sort_order ?? idx
+    const bOrder = b.sort_order ?? targetIdx
+
+    const sb = getSupabaseClient()
+    await Promise.all([
+      sb.from('items').update({ sort_order: bOrder }).eq('id', a.id),
+      sb.from('items').update({ sort_order: aOrder }).eq('id', b.id),
+    ])
+    await fetchItems()
+  }
+
   async function saveItem() {
     if (!form.name.trim()) return
     setSaving(true)
@@ -72,7 +91,8 @@ export default function AdminPage() {
       const { error } = await sb.from('items').update(form).eq('id', editingId)
       if (!error) showToast('更新しました')
     } else {
-      const { error } = await sb.from('items').insert(form)
+      const maxOrder = items.reduce((max, i) => Math.max(max, i.sort_order ?? 0), 0)
+      const { error } = await sb.from('items').insert({ ...form, sort_order: maxOrder + 1 })
       if (!error) showToast('追加しました')
     }
     setShowForm(false)
@@ -105,12 +125,26 @@ export default function AdminPage() {
             </Link>
             <h1 className="text-xl font-bold">商品管理</h1>
           </div>
-          <button
-            onClick={openNew}
-            className="bg-white text-teal-700 px-3 py-1.5 rounded-full text-sm font-medium"
-          >
-            ＋ 追加
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setReorderMode(!reorderMode)}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium ${
+                reorderMode
+                  ? 'bg-yellow-400 text-yellow-900'
+                  : 'bg-white/20 text-white'
+              }`}
+            >
+              {reorderMode ? '完了' : '並び替え'}
+            </button>
+            {!reorderMode && (
+              <button
+                onClick={openNew}
+                className="bg-white text-teal-700 px-3 py-1.5 rounded-full text-sm font-medium"
+              >
+                ＋ 追加
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -134,10 +168,12 @@ export default function AdminPage() {
           <div className="text-center py-12 text-gray-400">読み込み中...</div>
         ) : (
           <div className="space-y-2">
-            {filtered.map((item) => (
+            {filtered.map((item, idx) => (
               <div
                 key={item.id}
-                className="bg-white rounded-xl shadow-sm p-4 flex items-center justify-between"
+                className={`bg-white rounded-xl shadow-sm p-4 flex items-center justify-between ${
+                  reorderMode ? 'border-2 border-yellow-200' : ''
+                }`}
               >
                 <div>
                   <p className="font-medium text-gray-800">{item.name}</p>
@@ -149,18 +185,39 @@ export default function AdminPage() {
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0 ml-3">
-                  <button
-                    onClick={() => openEdit(item)}
-                    className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium"
-                  >
-                    編集
-                  </button>
-                  <button
-                    onClick={() => deleteItem(item)}
-                    className="px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-sm font-medium"
-                  >
-                    削除
-                  </button>
+                  {reorderMode ? (
+                    <>
+                      <button
+                        onClick={() => moveItem(item.id, 'up')}
+                        disabled={idx === 0}
+                        className="w-10 h-10 bg-gray-100 text-gray-600 rounded-lg text-lg font-bold disabled:opacity-20"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        onClick={() => moveItem(item.id, 'down')}
+                        disabled={idx === filtered.length - 1}
+                        className="w-10 h-10 bg-gray-100 text-gray-600 rounded-lg text-lg font-bold disabled:opacity-20"
+                      >
+                        ↓
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => openEdit(item)}
+                        className="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-lg text-sm font-medium"
+                      >
+                        編集
+                      </button>
+                      <button
+                        onClick={() => deleteItem(item)}
+                        className="px-3 py-1.5 bg-red-50 text-red-500 rounded-lg text-sm font-medium"
+                      >
+                        削除
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

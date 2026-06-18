@@ -13,6 +13,7 @@ export type Item = {
   unit_price: number
   supplier: string
   note: string
+  sort_order: number | null
   created_at: string
   updated_at: string
 }

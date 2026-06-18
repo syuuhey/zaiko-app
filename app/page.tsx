@@ -25,7 +25,7 @@ export default function Home() {
     const { data } = await sb
       .from('items')
       .select('*')
-      .order('category')
+      .order('sort_order', { nullsFirst: false })
       .order('name')
     if (data) setItems(data)
     setLoading(false)
