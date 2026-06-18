@@ -28,10 +28,17 @@ export type StockLog = {
   checked_at: string
 }
 
+export type DonutType = {
+  id: string
+  name: string
+  sort_order: number | null
+  created_at: string
+}
+
 export type WasteLog = {
   id: string
-  item_id: string
-  item_name: string
+  donut_type_id: string
+  donut_type_name: string
   quantity: number
   recorded_by: string
   wasted_at: string

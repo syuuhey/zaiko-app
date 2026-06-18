@@ -25,11 +25,19 @@ create table stock_logs (
   checked_at timestamptz default now()
 );
 
+-- ドーナツ種類マスタ（在庫とは独立）
+create table donut_types (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  sort_order integer,
+  created_at timestamptz default now()
+);
+
 -- 廃棄記録
 create table waste_logs (
   id uuid primary key default gen_random_uuid(),
-  item_id uuid references items(id) on delete cascade,
-  item_name text not null,
+  donut_type_id uuid references donut_types(id) on delete cascade,
+  donut_type_name text not null,
   quantity integer not null default 1,
   recorded_by text not null default 'スタッフ',
   wasted_at timestamptz default now()

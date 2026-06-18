@@ -1,99 +1,111 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { getSupabaseClient, type Item, type WasteLog } from '@/lib/supabase'
+import { useEffect, useState, useCallback } from 'react'
+import { getSupabaseClient, type DonutType } from '@/lib/supabase'
 import Link from 'next/link'
 
-type WasteSummary = {
-  item_id: string
-  item_name: string
-  total: number
+function getLocalDateStr(date: Date = new Date()) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
-function toDateStr(date: Date) {
-  return date.toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-')
+function addDays(dateStr: string, days: number) {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() + days)
+  return getLocalDateStr(d)
+}
+
+function formatDateLabel(dateStr: string) {
+  const today = getLocalDateStr()
+  if (dateStr === today) return '今日'
+  if (dateStr === addDays(today, -1)) return '昨日'
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 
 export default function WastePage() {
-  const [items, setItems] = useState<Item[]>([])
-  const [logs, setLogs] = useState<WasteLog[]>([])
-  const [selectedItemId, setSelectedItemId] = useState('')
-  const [quantity, setQuantity] = useState(1)
+  const [types, setTypes] = useState<DonutType[]>([])
+  const [counts, setCounts] = useState<Record<string, number>>({})
+  const [date, setDate] = useState(getLocalDateStr())
   const [recordedBy, setRecordedBy] = useState('スタッフ')
-  const [saving, setSaving] = useState(false)
-  const [toast, setToast] = useState<string | null>(null)
-  const [selectedDate, setSelectedDate] = useState(toDateStr(new Date()))
+  const [showManage, setShowManage] = useState(false)
+  const [newTypeName, setNewTypeName] = useState('')
+  const [adding, setAdding] = useState(false)
 
-  useEffect(() => {
-    fetchItems()
-  }, [])
-
-  useEffect(() => {
-    fetchLogs()
-  }, [selectedDate])
-
-  async function fetchItems() {
+  const fetchTypes = useCallback(async () => {
     const sb = getSupabaseClient()
     const { data } = await sb
-      .from('items')
+      .from('donut_types')
       .select('*')
       .order('sort_order', { nullsFirst: false })
-      .order('name')
-    if (data) {
-      setItems(data)
-      if (data.length > 0) setSelectedItemId(data[0].id)
-    }
-  }
-
-  async function fetchLogs() {
-    const sb = getSupabaseClient()
-    const start = `${selectedDate}T00:00:00`
-    const end = `${selectedDate}T23:59:59`
-    const { data } = await sb
-      .from('waste_logs')
-      .select('*')
-      .gte('wasted_at', start)
-      .lte('wasted_at', end)
-      .order('wasted_at', { ascending: false })
-    if (data) setLogs(data)
-  }
-
-  async function recordWaste() {
-    if (!selectedItemId || quantity <= 0) return
-    setSaving(true)
-    const item = items.find((i) => i.id === selectedItemId)
-    if (!item) return
-    const sb = getSupabaseClient()
-    const { error } = await sb.from('waste_logs').insert({
-      item_id: selectedItemId,
-      item_name: item.name,
-      quantity,
-      recorded_by: recordedBy,
-    })
-    if (!error) {
-      showToast(`${item.name} を ${quantity}${item.unit} 記録しました`)
-      setQuantity(1)
-      await fetchLogs()
-    }
-    setSaving(false)
-  }
-
-  function showToast(msg: string) {
-    setToast(msg)
-    setTimeout(() => setToast(null), 2500)
-  }
-
-  const summary: WasteSummary[] = logs.reduce<WasteSummary[]>((acc, log) => {
-    const existing = acc.find((s) => s.item_id === log.item_id)
-    if (existing) {
-      existing.total += log.quantity
-    } else {
-      acc.push({ item_id: log.item_id, item_name: log.item_name, total: log.quantity })
-    }
-    return acc
+      .order('created_at')
+    if (data) setTypes(data)
   }, [])
 
-  const selectedItem = items.find((i) => i.id === selectedItemId)
+  const fetchCounts = useCallback(async () => {
+    const sb = getSupabaseClient()
+    const { data } = await sb
+      .from('waste_logs')
+      .select('donut_type_id, quantity')
+      .gte('wasted_at', `${date}T00:00:00`)
+      .lte('wasted_at', `${date}T23:59:59`)
+    const c: Record<string, number> = {}
+    data?.forEach((log) => {
+      c[log.donut_type_id] = (c[log.donut_type_id] || 0) + log.quantity
+    })
+    Object.keys(c).forEach((k) => { if (c[k] < 0) c[k] = 0 })
+    setCounts(c)
+  }, [date])
+
+  useEffect(() => { fetchTypes() }, [fetchTypes])
+  useEffect(() => { fetchCounts() }, [fetchCounts])
+
+  const isToday = date === getLocalDateStr()
+
+  async function increment(type: DonutType) {
+    setCounts((prev) => ({ ...prev, [type.id]: (prev[type.id] || 0) + 1 }))
+    const sb = getSupabaseClient()
+    await sb.from('waste_logs').insert({
+      donut_type_id: type.id,
+      donut_type_name: type.name,
+      quantity: 1,
+      recorded_by: recordedBy,
+    })
+  }
+
+  async function decrement(type: DonutType) {
+    if ((counts[type.id] || 0) <= 0) return
+    setCounts((prev) => ({ ...prev, [type.id]: (prev[type.id] || 0) - 1 }))
+    const sb = getSupabaseClient()
+    await sb.from('waste_logs').insert({
+      donut_type_id: type.id,
+      donut_type_name: type.name,
+      quantity: -1,
+      recorded_by: recordedBy,
+    })
+  }
+
+  async function addType() {
+    if (!newTypeName.trim()) return
+    setAdding(true)
+    const sb = getSupabaseClient()
+    const maxOrder = types.reduce((max, t) => Math.max(max, t.sort_order ?? 0), 0)
+    await sb.from('donut_types').insert({ name: newTypeName.trim(), sort_order: maxOrder + 1 })
+    setNewTypeName('')
+    await fetchTypes()
+    setAdding(false)
+  }
+
+  async function deleteType(id: string) {
+    if (!confirm('この種類を削除しますか？')) return
+    const sb = getSupabaseClient()
+    await sb.from('donut_types').delete().eq('id', id)
+    setTypes((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  const total = Object.values(counts).reduce((n, c) => n + c, 0)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -101,7 +113,7 @@ export default function WastePage() {
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="text-white opacity-80 text-sm">← 戻る</Link>
-            <h1 className="text-xl font-bold">廃棄記録</h1>
+            <h1 className="text-xl font-bold">廃棄カウント</h1>
           </div>
         </div>
       </header>
@@ -120,128 +132,127 @@ export default function WastePage() {
           />
         </div>
 
-        {/* 記録フォーム */}
-        <div className="bg-white rounded-xl shadow-sm p-4 space-y-4">
-          <h2 className="font-bold text-gray-700">廃棄を記録</h2>
-
-          {/* 商品選択 */}
-          <div className="space-y-1">
-            <label className="text-sm text-gray-500">商品</label>
-            <select
-              value={selectedItemId}
-              onChange={(e) => setSelectedItemId(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-teal-400"
-            >
-              {items.map((item) => (
-                <option key={item.id} value={item.id}>{item.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 数量 */}
-          <div className="space-y-1">
-            <label className="text-sm text-gray-500">廃棄数</label>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-11 h-11 bg-gray-100 rounded-lg text-xl font-bold text-gray-700 flex items-center justify-center"
-              >
-                −
-              </button>
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={quantity}
-                onFocus={(e) => e.target.select()}
-                onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
-                className="w-20 text-center text-xl font-bold border border-gray-200 rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
-              />
-              <button
-                onClick={() => setQuantity(quantity + 1)}
-                className="w-11 h-11 bg-gray-100 rounded-lg text-xl font-bold text-gray-700 flex items-center justify-center"
-              >
-                ＋
-              </button>
-              {selectedItem && (
-                <span className="text-sm text-gray-400">{selectedItem.unit}</span>
-              )}
-            </div>
-          </div>
-
+        {/* 日付ナビ */}
+        <div className="flex items-center justify-between bg-white rounded-xl shadow-sm px-2 py-2">
           <button
-            onClick={recordWaste}
-            disabled={saving || !selectedItemId}
-            className="w-full bg-teal-600 text-white py-3 rounded-xl font-medium text-base disabled:opacity-50"
+            onClick={() => setDate(addDays(date, -1))}
+            className="px-4 py-2 text-2xl text-gray-400"
           >
-            {saving ? '記録中...' : '記録する'}
+            ‹
+          </button>
+          <div className="text-center">
+            <p className="font-bold text-gray-800">{formatDateLabel(date)}</p>
+            <p className="text-xs text-gray-400">{date}</p>
+          </div>
+          <button
+            onClick={() => setDate(addDays(date, 1))}
+            disabled={isToday}
+            className="px-4 py-2 text-2xl text-gray-400 disabled:opacity-20"
+          >
+            ›
           </button>
         </div>
 
-        {/* 集計 */}
-        <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold text-gray-700">廃棄集計</h2>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-teal-400"
-            />
-          </div>
-
-          {summary.length === 0 ? (
-            <p className="text-center text-gray-400 py-4 text-sm">この日の廃棄記録はありません</p>
+        {/* カウンター */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          {types.length === 0 ? (
+            <div className="py-12 text-center text-gray-400 text-sm space-y-2">
+              <p>ドーナツの種類が未登録です</p>
+              <button
+                onClick={() => setShowManage(true)}
+                className="text-teal-600 underline"
+              >
+                種類を追加する
+              </button>
+            </div>
           ) : (
-            <div className="space-y-2">
-              {summary.map((s) => {
-                const item = items.find((i) => i.id === s.item_id)
+            <>
+              {types.map((type) => {
+                const count = counts[type.id] || 0
                 return (
-                  <div key={s.item_id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                    <span className="text-base text-gray-800">{s.item_name}</span>
-                    <span className="font-bold text-lg text-teal-700 font-mono">
-                      {s.total}
-                      <span className="text-sm font-normal text-gray-400 ml-1">{item?.unit ?? ''}</span>
-                    </span>
+                  <div
+                    key={type.id}
+                    className="flex items-center px-4 py-3 border-b border-gray-50 last:border-0"
+                  >
+                    <span className="flex-1 font-medium text-gray-800">{type.name}</span>
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => decrement(type)}
+                        disabled={count <= 0 || !isToday}
+                        className="w-11 h-11 rounded-xl bg-gray-100 text-xl font-bold text-gray-500 flex items-center justify-center disabled:opacity-25"
+                      >
+                        −
+                      </button>
+                      <span className="w-10 text-center text-2xl font-bold text-gray-800 font-mono">
+                        {count}
+                      </span>
+                      <button
+                        onClick={() => increment(type)}
+                        disabled={!isToday}
+                        className="w-11 h-11 rounded-xl bg-teal-500 text-white text-xl font-bold flex items-center justify-center disabled:opacity-25 active:bg-teal-600"
+                      >
+                        ＋
+                      </button>
+                    </div>
                   </div>
                 )
               })}
-              <div className="flex items-center justify-between pt-2 text-sm text-gray-500">
-                <span>合計廃棄数</span>
-                <span className="font-bold">{summary.reduce((n, s) => n + s.total, 0)}</span>
+              <div className="px-4 py-3 bg-gray-50 flex items-center justify-between">
+                <span className="text-sm text-gray-500">合計廃棄数</span>
+                <span className="text-xl font-bold text-teal-700 font-mono">
+                  {total}
+                  <span className="text-sm font-normal text-gray-400 ml-1">個</span>
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 種類を管理 */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <button
+            onClick={() => setShowManage(!showManage)}
+            className="w-full px-4 py-3 flex items-center justify-between text-sm text-gray-500"
+          >
+            <span>ドーナツの種類を管理</span>
+            <span className="text-xs">{showManage ? '▲' : '▼'}</span>
+          </button>
+
+          {showManage && (
+            <div className="px-4 pb-4 border-t border-gray-100 space-y-1 pt-3">
+              {types.map((type) => (
+                <div key={type.id} className="flex items-center justify-between py-1.5">
+                  <span className="text-gray-800">{type.name}</span>
+                  <button
+                    onClick={() => deleteType(type.id)}
+                    className="text-sm text-red-400 px-2 py-1"
+                  >
+                    削除
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-2 pt-3">
+                <input
+                  type="text"
+                  value={newTypeName}
+                  onChange={(e) => setNewTypeName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addType()}
+                  placeholder="新しい種類名"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-teal-400"
+                />
+                <button
+                  onClick={addType}
+                  disabled={adding || !newTypeName.trim()}
+                  className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+                >
+                  追加
+                </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* 当日の記録一覧 */}
-        {logs.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm p-4 space-y-2">
-            <h2 className="font-bold text-gray-700 text-sm">記録一覧</h2>
-            {logs.map((log) => {
-              const item = items.find((i) => i.id === log.item_id)
-              const time = new Date(log.wasted_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
-              return (
-                <div key={log.id} className="flex items-center justify-between text-sm py-1.5 border-b border-gray-50 last:border-0">
-                  <div>
-                    <span className="text-gray-800">{log.item_name}</span>
-                    <span className="text-gray-400 ml-2">{log.recorded_by} · {time}</span>
-                  </div>
-                  <span className="font-mono text-gray-700">
-                    {log.quantity}{item?.unit ?? ''}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-        )}
       </div>
-
-      {toast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-3 rounded-xl text-sm shadow-lg">
-          {toast}
-        </div>
-      )}
     </div>
   )
 }
