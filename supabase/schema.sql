@@ -25,6 +25,16 @@ create table stock_logs (
   checked_at timestamptz default now()
 );
 
+-- 廃棄記録
+create table waste_logs (
+  id uuid primary key default gen_random_uuid(),
+  item_id uuid references items(id) on delete cascade,
+  item_name text not null,
+  quantity integer not null default 1,
+  recorded_by text not null default 'スタッフ',
+  wasted_at timestamptz default now()
+);
+
 -- updated_at 自動更新
 create or replace function update_updated_at()
 returns trigger as $$

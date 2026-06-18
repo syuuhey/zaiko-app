@@ -28,6 +28,15 @@ export type StockLog = {
   checked_at: string
 }
 
+export type WasteLog = {
+  id: string
+  item_id: string
+  item_name: string
+  quantity: number
+  recorded_by: string
+  wasted_at: string
+}
+
 let _instance: SupabaseClient | null = null
 
 export function getSupabaseClient(): SupabaseClient {

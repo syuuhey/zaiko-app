@@ -100,6 +100,9 @@ export default function Home() {
             <Link href="/history" className="text-sm bg-white/20 text-white px-3 py-1.5 rounded-full font-medium">
               履歴
             </Link>
+            <Link href="/waste" className="text-sm bg-white/20 text-white px-3 py-1.5 rounded-full font-medium">
+              廃棄
+            </Link>
             <Link href="/admin" className="text-sm bg-white text-teal-700 px-3 py-1.5 rounded-full font-medium">
               管理
             </Link>
