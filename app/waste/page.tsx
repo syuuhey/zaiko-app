@@ -30,9 +30,14 @@ export default function WastePage() {
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [date, setDate] = useState(getLocalDateStr())
   const [recordedBy, setRecordedBy] = useState('スタッフ')
+  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
   const [showManage, setShowManage] = useState(false)
   const [newTypeName, setNewTypeName] = useState('')
   const [adding, setAdding] = useState(false)
+
+  const isToday = date === getLocalDateStr()
 
   const fetchTypes = useCallback(async () => {
     const sb = getSupabaseClient()
@@ -45,6 +50,7 @@ export default function WastePage() {
   }, [])
 
   const fetchCounts = useCallback(async () => {
+    setLoading(true)
     const sb = getSupabaseClient()
     const { data } = await sb
       .from('waste_logs')
@@ -55,36 +61,42 @@ export default function WastePage() {
     data?.forEach((log) => {
       c[log.donut_type_id] = (c[log.donut_type_id] || 0) + log.quantity
     })
-    Object.keys(c).forEach((k) => { if (c[k] < 0) c[k] = 0 })
     setCounts(c)
+    setLoading(false)
   }, [date])
 
   useEffect(() => { fetchTypes() }, [fetchTypes])
   useEffect(() => { fetchCounts() }, [fetchCounts])
 
-  const isToday = date === getLocalDateStr()
-
-  async function increment(type: DonutType) {
-    setCounts((prev) => ({ ...prev, [type.id]: (prev[type.id] || 0) + 1 }))
-    const sb = getSupabaseClient()
-    await sb.from('waste_logs').insert({
-      donut_type_id: type.id,
-      donut_type_name: type.name,
-      quantity: 1,
-      recorded_by: recordedBy,
-    })
+  function setCount(id: string, value: number) {
+    setCounts((prev) => ({ ...prev, [id]: Math.max(0, value) }))
   }
 
-  async function decrement(type: DonutType) {
-    if ((counts[type.id] || 0) <= 0) return
-    setCounts((prev) => ({ ...prev, [type.id]: (prev[type.id] || 0) - 1 }))
+  async function save() {
+    setSaving(true)
     const sb = getSupabaseClient()
-    await sb.from('waste_logs').insert({
-      donut_type_id: type.id,
-      donut_type_name: type.name,
-      quantity: -1,
-      recorded_by: recordedBy,
-    })
+
+    await sb
+      .from('waste_logs')
+      .delete()
+      .gte('wasted_at', `${date}T00:00:00`)
+      .lte('wasted_at', `${date}T23:59:59`)
+
+    const records = types
+      .filter((t) => (counts[t.id] || 0) > 0)
+      .map((t) => ({
+        donut_type_id: t.id,
+        donut_type_name: t.name,
+        quantity: counts[t.id],
+        recorded_by: recordedBy,
+      }))
+
+    if (records.length > 0) {
+      await sb.from('waste_logs').insert(records)
+    }
+
+    showToast('廃棄を記録しました')
+    setSaving(false)
   }
 
   async function addType() {
@@ -105,6 +117,11 @@ export default function WastePage() {
     setTypes((prev) => prev.filter((t) => t.id !== id))
   }
 
+  function showToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(null), 2500)
+  }
+
   const total = Object.values(counts).reduce((n, c) => n + c, 0)
 
   return (
@@ -113,7 +130,7 @@ export default function WastePage() {
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="text-white opacity-80 text-sm">← 戻る</Link>
-            <h1 className="text-xl font-bold">廃棄カウント</h1>
+            <h1 className="text-xl font-bold">廃棄記録</h1>
           </div>
         </div>
       </header>
@@ -121,16 +138,18 @@ export default function WastePage() {
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
 
         {/* 担当者 */}
-        <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
-          <span className="text-sm text-gray-500 shrink-0">担当者</span>
-          <input
-            type="text"
-            value={recordedBy}
-            onChange={(e) => setRecordedBy(e.target.value)}
-            className="flex-1 text-base border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
-            placeholder="名前を入力"
-          />
-        </div>
+        {isToday && (
+          <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
+            <span className="text-sm text-gray-500 shrink-0">担当者</span>
+            <input
+              type="text"
+              value={recordedBy}
+              onChange={(e) => setRecordedBy(e.target.value)}
+              className="flex-1 text-base border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
+              placeholder="名前を入力"
+            />
+          </div>
+        )}
 
         {/* 日付ナビ */}
         <div className="flex items-center justify-between bg-white rounded-xl shadow-sm px-2 py-2">
@@ -153,20 +172,24 @@ export default function WastePage() {
           </button>
         </div>
 
-        {/* カウンター */}
+        {/* 廃棄数入力リスト */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          {types.length === 0 ? (
+          {loading ? (
+            <div className="py-10 text-center text-gray-400 text-sm">読み込み中...</div>
+          ) : types.length === 0 ? (
             <div className="py-12 text-center text-gray-400 text-sm space-y-2">
               <p>ドーナツの種類が未登録です</p>
-              <button
-                onClick={() => setShowManage(true)}
-                className="text-teal-600 underline"
-              >
+              <button onClick={() => setShowManage(true)} className="text-teal-600 underline">
                 種類を追加する
               </button>
             </div>
           ) : (
             <>
+              {!isToday && (
+                <div className="px-4 py-2 bg-gray-50 text-xs text-gray-400 text-center">
+                  過去の記録（編集不可）
+                </div>
+              )}
               {types.map((type) => {
                 const count = counts[type.id] || 0
                 return (
@@ -174,29 +197,36 @@ export default function WastePage() {
                     key={type.id}
                     className="flex items-center px-4 py-3 border-b border-gray-50 last:border-0"
                   >
-                    <span className="flex-1 font-medium text-gray-800">{type.name}</span>
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => decrement(type)}
-                        disabled={count <= 0 || !isToday}
-                        className="w-11 h-11 rounded-xl bg-gray-100 text-xl font-bold text-gray-500 flex items-center justify-center disabled:opacity-25"
-                      >
-                        −
-                      </button>
-                      <span className="w-10 text-center text-2xl font-bold text-gray-800 font-mono">
+                    <span className="flex-1 text-base text-gray-800">{type.name}</span>
+                    {isToday ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCount(type.id, count - 1)}
+                          disabled={count <= 0}
+                          className="w-10 h-10 rounded-xl bg-gray-100 text-xl font-bold text-gray-500 flex items-center justify-center disabled:opacity-25"
+                        >
+                          −
+                        </button>
+                        <span className={`w-10 text-center text-2xl font-bold font-mono ${count > 0 ? 'text-teal-700' : 'text-gray-300'}`}>
+                          {count}
+                        </span>
+                        <button
+                          onClick={() => setCount(type.id, count + 1)}
+                          className="w-10 h-10 rounded-xl bg-gray-100 text-xl font-bold text-gray-600 flex items-center justify-center"
+                        >
+                          ＋
+                        </button>
+                      </div>
+                    ) : (
+                      <span className={`text-2xl font-bold font-mono ${count > 0 ? 'text-teal-700' : 'text-gray-200'}`}>
                         {count}
                       </span>
-                      <button
-                        onClick={() => increment(type)}
-                        disabled={!isToday}
-                        className="w-11 h-11 rounded-xl bg-teal-500 text-white text-xl font-bold flex items-center justify-center disabled:opacity-25 active:bg-teal-600"
-                      >
-                        ＋
-                      </button>
-                    </div>
+                    )}
                   </div>
                 )
               })}
+
+              {/* 合計 */}
               <div className="px-4 py-3 bg-gray-50 flex items-center justify-between">
                 <span className="text-sm text-gray-500">合計廃棄数</span>
                 <span className="text-xl font-bold text-teal-700 font-mono">
@@ -208,6 +238,17 @@ export default function WastePage() {
           )}
         </div>
 
+        {/* 記録ボタン */}
+        {isToday && types.length > 0 && (
+          <button
+            onClick={save}
+            disabled={saving}
+            className="w-full bg-teal-600 text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50"
+          >
+            {saving ? '記録中...' : '廃棄を記録する'}
+          </button>
+        )}
+
         {/* 種類を管理 */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <button
@@ -217,9 +258,8 @@ export default function WastePage() {
             <span>ドーナツの種類を管理</span>
             <span className="text-xs">{showManage ? '▲' : '▼'}</span>
           </button>
-
           {showManage && (
-            <div className="px-4 pb-4 border-t border-gray-100 space-y-1 pt-3">
+            <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-1">
               {types.map((type) => (
                 <div key={type.id} className="flex items-center justify-between py-1.5">
                   <span className="text-gray-800">{type.name}</span>
@@ -253,6 +293,12 @@ export default function WastePage() {
         </div>
 
       </div>
+
+      {toast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-3 rounded-xl text-sm shadow-lg">
+          {toast}
+        </div>
+      )}
     </div>
   )
 }
