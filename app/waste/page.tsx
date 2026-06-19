@@ -36,6 +36,8 @@ export default function WastePage() {
   const [showManage, setShowManage] = useState(false)
   const [newTypeName, setNewTypeName] = useState('')
   const [adding, setAdding] = useState(false)
+  const [exportMonth, setExportMonth] = useState(getLocalDateStr().slice(0, 7))
+  const [exporting, setExporting] = useState(false)
 
   const isToday = date === getLocalDateStr()
 
@@ -115,6 +117,40 @@ export default function WastePage() {
     const sb = getSupabaseClient()
     await sb.from('donut_types').delete().eq('id', id)
     setTypes((prev) => prev.filter((t) => t.id !== id))
+  }
+
+  async function downloadCSV() {
+    setExporting(true)
+    const sb = getSupabaseClient()
+    const [year, month] = exportMonth.split('-')
+    const lastDay = new Date(Number(year), Number(month), 0).getDate()
+    const { data } = await sb
+      .from('waste_logs')
+      .select('*')
+      .gte('wasted_at', `${exportMonth}-01T00:00:00`)
+      .lte('wasted_at', `${exportMonth}-${String(lastDay).padStart(2, '0')}T23:59:59`)
+      .order('wasted_at')
+
+    if (!data || data.length === 0) {
+      showToast('この月のデータがありません')
+      setExporting(false)
+      return
+    }
+
+    const header = '日付,ドーナツ種類,廃棄数,担当者'
+    const rows = data.map((log) => {
+      const d = log.wasted_at.slice(0, 10)
+      return `${d},${log.donut_type_name},${log.quantity},${log.recorded_by}`
+    })
+    const csv = '﻿' + [header, ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `廃棄記録_${exportMonth}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    setExporting(false)
   }
 
   function showToast(msg: string) {
@@ -248,6 +284,27 @@ export default function WastePage() {
             {saving ? '記録中...' : '廃棄を記録する'}
           </button>
         )}
+
+        {/* CSVダウンロード */}
+        <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+          <h2 className="text-sm font-bold text-gray-700">CSVダウンロード</h2>
+          <div className="flex gap-2 items-center">
+            <input
+              type="month"
+              value={exportMonth}
+              onChange={(e) => setExportMonth(e.target.value)}
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-teal-400"
+            />
+            <button
+              onClick={downloadCSV}
+              disabled={exporting}
+              className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 shrink-0"
+            >
+              {exporting ? '準備中...' : 'ダウンロード'}
+            </button>
+          </div>
+          <p className="text-xs text-gray-400">Excel・Googleスプレッドシートで開けます</p>
+        </div>
 
         {/* 種類を管理 */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
