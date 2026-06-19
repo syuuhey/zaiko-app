@@ -124,24 +124,41 @@ export default function WastePage() {
     const sb = getSupabaseClient()
     const [year, month] = exportMonth.split('-')
     const lastDay = new Date(Number(year), Number(month), 0).getDate()
-    const { data } = await sb
-      .from('waste_logs')
-      .select('*')
-      .gte('wasted_at', `${exportMonth}-01T00:00:00`)
-      .lte('wasted_at', `${exportMonth}-${String(lastDay).padStart(2, '0')}T23:59:59`)
-      .order('wasted_at')
 
-    if (!data || data.length === 0) {
+    const [{ data: typeData }, { data: logData }] = await Promise.all([
+      sb.from('donut_types').select('*').order('sort_order', { nullsFirst: false }).order('created_at'),
+      sb.from('waste_logs')
+        .select('*')
+        .gte('wasted_at', `${exportMonth}-01T00:00:00`)
+        .lte('wasted_at', `${exportMonth}-${String(lastDay).padStart(2, '0')}T23:59:59`)
+        .order('wasted_at'),
+    ])
+
+    if (!logData || logData.length === 0) {
       showToast('この月のデータがありません')
       setExporting(false)
       return
     }
 
-    const header = '日付,ドーナツ種類,廃棄数,担当者'
-    const rows = data.map((log) => {
+    // 日付ごとに集計
+    const byDate: Record<string, { recorded_by: string; qty: Record<string, number> }> = {}
+    logData.forEach((log) => {
       const d = log.wasted_at.slice(0, 10)
-      return `${d},${log.donut_type_name},${log.quantity},${log.recorded_by}`
+      if (!byDate[d]) byDate[d] = { recorded_by: log.recorded_by, qty: {} }
+      byDate[d].recorded_by = log.recorded_by
+      byDate[d].qty[log.donut_type_id] = (byDate[d].qty[log.donut_type_id] || 0) + log.quantity
     })
+
+    const colTypes = typeData ?? []
+    const header = ['日付', '担当者', ...colTypes.map((t) => t.name), '合計'].join(',')
+    const rows = Object.entries(byDate)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([d, { recorded_by, qty }]) => {
+        const qtys = colTypes.map((t) => qty[t.id] || 0)
+        const total = qtys.reduce((n, q) => n + q, 0)
+        return [d, recorded_by, ...qtys, total].join(',')
+      })
+
     const csv = '﻿' + [header, ...rows].join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
