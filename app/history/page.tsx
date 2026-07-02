@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { getSupabaseClient } from '@/lib/supabase'
+import { useStoreSelection } from '@/lib/stores'
+import StoreSwitcher from '@/app/components/StoreSwitcher'
 import Link from 'next/link'
 
 type Log = {
@@ -15,13 +17,14 @@ type Log = {
 }
 
 export default function HistoryPage() {
+  const { stores, storeId, selectStore } = useStoreSelection()
   const [logs, setLogs] = useState<Log[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStaff, setFilterStaff] = useState('すべて')
 
   useEffect(() => {
-    fetchLogs()
-  }, [])
+    if (storeId) fetchLogs()
+  }, [storeId])
 
   async function fetchLogs() {
     setLoading(true)
@@ -29,6 +32,7 @@ export default function HistoryPage() {
     const { data } = await sb
       .from('stock_logs')
       .select('*, items(name, unit)')
+      .eq('store_id', storeId)
       .order('checked_at', { ascending: false })
       .limit(200)
     if (data) setLogs(data as Log[])
@@ -66,6 +70,9 @@ export default function HistoryPage() {
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        {/* 店舗切り替え */}
+        <StoreSwitcher stores={stores} storeId={storeId} onSelect={selectStore} />
+
         {/* 担当者フィルター */}
         {!loading && staffList.length > 1 && (
           <div className="bg-white rounded-xl shadow-sm p-3">

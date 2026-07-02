@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { getSupabaseClient, type DonutType } from '@/lib/supabase'
+import { useStoreSelection } from '@/lib/stores'
+import StoreSwitcher from '@/app/components/StoreSwitcher'
 import Link from 'next/link'
 
 function getLocalDateStr(date: Date = new Date()) {
@@ -25,10 +27,16 @@ function formatDateLabel(dateStr: string) {
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 
+// 0時まで営業のため、深夜0時〜朝4時59分の間は前日を「営業日」として扱う
+function getBusinessDateStr() {
+  return getLocalDateStr(new Date(Date.now() - 5 * 60 * 60 * 1000))
+}
+
 export default function WastePage() {
+  const { stores, storeId, selectStore } = useStoreSelection()
   const [types, setTypes] = useState<DonutType[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
-  const [date, setDate] = useState(getLocalDateStr())
+  const [date, setDate] = useState(getBusinessDateStr())
   const [recordedBy, setRecordedBy] = useState('スタッフ')
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -39,24 +47,30 @@ export default function WastePage() {
   const [exportMonth, setExportMonth] = useState(getLocalDateStr().slice(0, 7))
   const [exporting, setExporting] = useState(false)
 
-  const isToday = date === getLocalDateStr()
+  // 営業日（深夜0時〜4時59分は前日）から今日までの日付は編集可能
+  const isEditable = date >= getBusinessDateStr() && date <= getLocalDateStr()
+  const isLatestDay = date >= getLocalDateStr()
 
   const fetchTypes = useCallback(async () => {
+    if (!storeId) return
     const sb = getSupabaseClient()
     const { data } = await sb
       .from('donut_types')
       .select('*')
+      .eq('store_id', storeId)
       .order('sort_order', { nullsFirst: false })
       .order('created_at')
     if (data) setTypes(data)
-  }, [])
+  }, [storeId])
 
   const fetchCounts = useCallback(async () => {
+    if (!storeId) return
     setLoading(true)
     const sb = getSupabaseClient()
     const { data } = await sb
       .from('waste_logs')
       .select('donut_type_id, quantity')
+      .eq('store_id', storeId)
       .gte('wasted_at', `${date}T00:00:00`)
       .lte('wasted_at', `${date}T23:59:59`)
     const c: Record<string, number> = {}
@@ -65,7 +79,7 @@ export default function WastePage() {
     })
     setCounts(c)
     setLoading(false)
-  }, [date])
+  }, [date, storeId])
 
   useEffect(() => { fetchTypes() }, [fetchTypes])
   useEffect(() => { fetchCounts() }, [fetchCounts])
@@ -81,9 +95,11 @@ export default function WastePage() {
     await sb
       .from('waste_logs')
       .delete()
+      .eq('store_id', storeId)
       .gte('wasted_at', `${date}T00:00:00`)
       .lte('wasted_at', `${date}T23:59:59`)
 
+    // 深夜0時過ぎの保存でも選択中の営業日に記録が入るよう、日時を明示する
     const records = types
       .filter((t) => (counts[t.id] || 0) > 0)
       .map((t) => ({
@@ -91,6 +107,8 @@ export default function WastePage() {
         donut_type_name: t.name,
         quantity: counts[t.id],
         recorded_by: recordedBy,
+        store_id: storeId,
+        wasted_at: `${date}T12:00:00`,
       }))
 
     if (records.length > 0) {
@@ -106,16 +124,25 @@ export default function WastePage() {
     setAdding(true)
     const sb = getSupabaseClient()
     const maxOrder = types.reduce((max, t) => Math.max(max, t.sort_order ?? 0), 0)
-    await sb.from('donut_types').insert({ name: newTypeName.trim(), sort_order: maxOrder + 1 })
+    await sb
+      .from('donut_types')
+      .insert({ name: newTypeName.trim(), sort_order: maxOrder + 1, store_id: storeId })
     setNewTypeName('')
     await fetchTypes()
     setAdding(false)
   }
 
   async function deleteType(id: string) {
-    if (!confirm('この種類を削除しますか？')) return
+    if (!confirm('この種類を削除しますか？（過去の廃棄履歴も一緒に消えます）')) return
     const sb = getSupabaseClient()
-    await sb.from('donut_types').delete().eq('id', id)
+    const { error, count } = await sb
+      .from('donut_types')
+      .delete({ count: 'exact' })
+      .eq('id', id)
+    if (error || !count) {
+      showToast('削除できませんでした（種類の削除は店長ログインが必要です）')
+      return
+    }
     setTypes((prev) => prev.filter((t) => t.id !== id))
   }
 
@@ -126,9 +153,10 @@ export default function WastePage() {
     const lastDay = new Date(Number(year), Number(month), 0).getDate()
 
     const [{ data: typeData }, { data: logData }] = await Promise.all([
-      sb.from('donut_types').select('*').order('sort_order', { nullsFirst: false }).order('created_at'),
+      sb.from('donut_types').select('*').eq('store_id', storeId).order('sort_order', { nullsFirst: false }).order('created_at'),
       sb.from('waste_logs')
         .select('*')
+        .eq('store_id', storeId)
         .gte('wasted_at', `${exportMonth}-01T00:00:00`)
         .lte('wasted_at', `${exportMonth}-${String(lastDay).padStart(2, '0')}T23:59:59`)
         .order('wasted_at'),
@@ -190,8 +218,11 @@ export default function WastePage() {
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
 
+        {/* 店舗切り替え */}
+        <StoreSwitcher stores={stores} storeId={storeId} onSelect={selectStore} />
+
         {/* 担当者 */}
-        {isToday && (
+        {isEditable && (
           <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
             <span className="text-sm text-gray-500 shrink-0">担当者</span>
             <input
@@ -218,7 +249,7 @@ export default function WastePage() {
           </div>
           <button
             onClick={() => setDate(addDays(date, 1))}
-            disabled={isToday}
+            disabled={isLatestDay}
             className="px-4 py-2 text-2xl text-gray-400 disabled:opacity-20"
           >
             ›
@@ -238,7 +269,7 @@ export default function WastePage() {
             </div>
           ) : (
             <>
-              {!isToday && (
+              {!isEditable && (
                 <div className="px-4 py-2 bg-gray-50 text-xs text-gray-400 text-center">
                   過去の記録（編集不可）
                 </div>
@@ -251,7 +282,7 @@ export default function WastePage() {
                     className="flex items-center px-4 py-3 border-b border-gray-50 last:border-0"
                   >
                     <span className="flex-1 text-base text-gray-800">{type.name}</span>
-                    {isToday ? (
+                    {isEditable ? (
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setCount(type.id, count - 1)}
@@ -292,7 +323,7 @@ export default function WastePage() {
         </div>
 
         {/* 記録ボタン */}
-        {isToday && types.length > 0 && (
+        {isEditable && types.length > 0 && (
           <button
             onClick={save}
             disabled={saving}

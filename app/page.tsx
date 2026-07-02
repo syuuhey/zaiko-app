@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { getSupabaseClient, type Item, type Category } from '@/lib/supabase'
+import { useStoreSelection } from '@/lib/stores'
+import StoreSwitcher from '@/app/components/StoreSwitcher'
 import Link from 'next/link'
 
 export default function Home() {
+  const { stores, storeId, selectStore } = useStoreSelection()
   const [items, setItems] = useState<Item[]>([])
   const [category, setCategory] = useState<Category>('食料品')
   const [supplier, setSupplier] = useState<string>('すべて')
@@ -16,8 +19,8 @@ export default function Home() {
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchItems()
-  }, [])
+    if (storeId) fetchItems()
+  }, [storeId])
 
   async function fetchItems() {
     setLoading(true)
@@ -25,6 +28,7 @@ export default function Home() {
     const { data } = await sb
       .from('items')
       .select('*')
+      .eq('store_id', storeId)
       .order('sort_order', { nullsFirst: false })
       .order('name')
     if (data) setItems(data)
@@ -61,6 +65,7 @@ export default function Home() {
     if (!error) {
       await sb.from('stock_logs').insert({
         item_id: item.id,
+        store_id: item.store_id,
         checked_by: checkedBy,
         stock_before: item.stock,
         stock_after: editStock,
@@ -111,6 +116,9 @@ export default function Home() {
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        {/* 店舗切り替え */}
+        <StoreSwitcher stores={stores} storeId={storeId} onSelect={selectStore} />
+
         {/* 担当者 */}
         <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
           <span className="text-sm text-gray-500 shrink-0">担当者</span>

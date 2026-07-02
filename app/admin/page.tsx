@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { getSupabaseClient, type Item, type Category } from '@/lib/supabase'
+import { useStoreSelection } from '@/lib/stores'
+import StoreSwitcher from '@/app/components/StoreSwitcher'
 import Link from 'next/link'
 
 const EMPTY_FORM = {
@@ -17,6 +19,7 @@ const EMPTY_FORM = {
 }
 
 export default function AdminPage() {
+  const { stores, storeId, selectStore } = useStoreSelection()
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -28,8 +31,8 @@ export default function AdminPage() {
   const [reorderMode, setReorderMode] = useState(false)
 
   useEffect(() => {
-    fetchItems()
-  }, [])
+    if (storeId) fetchItems()
+  }, [storeId])
 
   async function fetchItems() {
     setLoading(true)
@@ -37,6 +40,7 @@ export default function AdminPage() {
     const { data } = await sb
       .from('items')
       .select('*')
+      .eq('store_id', storeId)
       .order('sort_order', { nullsFirst: false })
       .order('name')
     if (data) setItems(data)
@@ -92,7 +96,9 @@ export default function AdminPage() {
       if (!error) showToast('更新しました')
     } else {
       const maxOrder = items.reduce((max, i) => Math.max(max, i.sort_order ?? 0), 0)
-      const { error } = await sb.from('items').insert({ ...form, sort_order: maxOrder + 1 })
+      const { error } = await sb
+        .from('items')
+        .insert({ ...form, sort_order: maxOrder + 1, store_id: storeId })
       if (!error) showToast('追加しました')
     }
     setShowForm(false)
@@ -103,7 +109,14 @@ export default function AdminPage() {
   async function deleteItem(item: Item) {
     if (!confirm(`「${item.name}」を削除しますか？`)) return
     const sb = getSupabaseClient()
-    await sb.from('items').delete().eq('id', item.id)
+    const { error, count } = await sb
+      .from('items')
+      .delete({ count: 'exact' })
+      .eq('id', item.id)
+    if (error || !count) {
+      showToast('削除できませんでした（商品の削除は店長ログインが必要です）')
+      return
+    }
     setItems((prev) => prev.filter((i) => i.id !== item.id))
     showToast('削除しました')
   }
@@ -149,6 +162,9 @@ export default function AdminPage() {
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+        {/* 店舗切り替え */}
+        <StoreSwitcher stores={stores} storeId={storeId} onSelect={selectStore} />
+
         {/* カテゴリタブ */}
         <div className="flex bg-white rounded-xl shadow-sm overflow-hidden">
           {(['食料品', '備品'] as Category[]).map((cat) => (
