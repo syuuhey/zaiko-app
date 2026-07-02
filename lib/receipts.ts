@@ -136,8 +136,19 @@ export async function processReceiptImage(
     categories.find((c) => c.name === '雑費')
   if (!category) throw new Error('経費科目の決定に失敗しました')
 
-  const expenseDate = /^\d{4}-\d{2}-\d{2}$/.test(ocr.date) ? ocr.date : todayJst()
-  const isConfident = ocr.confidence === 'high' && category.name === ocr.category
+  // 日付ガード: 形式不正、または送信日から60日以上ズレた読み取り結果は誤読とみなし送信日で記録
+  let expenseDate = todayJst()
+  let dateSuspicious = false
+  if (/^\d{4}-\d{2}-\d{2}$/.test(ocr.date)) {
+    const diffDays = Math.abs(Date.parse(ocr.date) - Date.parse(todayJst())) / 86_400_000
+    if (diffDays <= 60) {
+      expenseDate = ocr.date
+    } else {
+      dateSuspicious = true
+    }
+  }
+  const isConfident =
+    ocr.confidence === 'high' && category.name === ocr.category && !dateSuspicious
 
   // 6. expensesに登録
   const { data: expense, error: insertError } = await supabase

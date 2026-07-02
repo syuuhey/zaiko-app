@@ -13,26 +13,46 @@ export default async function ExpensesPage({
   const params = await searchParams
   const stores = await getStores()
   const store = stores.find((s) => s.slug === params.store) ?? stores[0]
-  const month = params.month ?? currentMonth()
+  const showAll = params.month === 'all'
+  const month = showAll || !params.month ? currentMonth() : params.month
 
   if (!store) return <p className="text-gray-400">店舗が登録されていません</p>
 
   const supabase = await getSupabaseServerClient()
   const { start, end } = monthRange(month)
+
+  let expensesQuery = supabase
+    .from('expenses')
+    .select('*, expense_categories(name)')
+    .eq('store_id', store.id)
+    .order('expense_date', { ascending: false })
+  if (!showAll) {
+    expensesQuery = expensesQuery.gte('expense_date', start).lt('expense_date', end)
+  }
+
   const [{ data: categories }, { data: expenses }] = await Promise.all([
     supabase.from('expense_categories').select('*').order('sort_order'),
-    supabase
-      .from('expenses')
-      .select('*, expense_categories(name)')
-      .eq('store_id', store.id)
-      .gte('expense_date', start)
-      .lt('expense_date', end)
-      .order('expense_date', { ascending: false }),
+    expensesQuery,
   ])
 
   return (
     <div className="space-y-4">
       <MonthStoreNav stores={stores} storeSlug={store.slug} month={month} />
+
+      <p className="text-xs">
+        {showAll ? (
+          <>
+            <span className="text-orange-600 font-bold">全期間の経費を表示中。</span>{' '}
+            <a href={`/dashboard/expenses?store=${store.slug}&month=${month}`} className="text-gray-500 underline">
+              月表示に戻す
+            </a>
+          </>
+        ) : (
+          <a href={`/dashboard/expenses?store=${store.slug}&month=all`} className="text-gray-400 underline">
+            見つからない経費がある場合は全期間表示で探す
+          </a>
+        )}
+      </p>
 
       <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
         <h2 className="text-sm font-bold text-gray-700">経費を手入力で追加</h2>
