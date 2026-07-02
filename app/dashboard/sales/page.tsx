@@ -2,7 +2,7 @@ import { getSupabaseServerClient } from '@/lib/supabase-server'
 import { getStores, currentMonth } from '@/lib/stores-server'
 import { monthRange } from '@/lib/pnl'
 import MonthStoreNav from '@/app/dashboard/components/MonthStoreNav'
-import { addSales } from '@/app/dashboard/actions'
+import { addSales, importSalesCsv } from '@/app/dashboard/actions'
 
 export default async function SalesPage({
   searchParams,
@@ -29,9 +29,33 @@ export default async function SalesPage({
   return (
     <div className="space-y-4">
       <MonthStoreNav stores={stores} storeSlug={store.slug} month={month} />
-      <p className="text-xs text-gray-400">
-        AirREGI連携が整うまでは手入力です。連携が始まると自動反映（source: airregi）に切り替わります。
-      </p>
+
+      <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+        <h2 className="text-sm font-bold text-gray-700">AirレジのCSVを取り込む</h2>
+        <p className="text-xs text-gray-400">
+          Airレジ バックオフィスの「売上」からダウンロードした売上集計CSVをそのままアップロードしてください。同じ日付は上書きされます。
+        </p>
+        <form action={importSalesCsv} className="space-y-3">
+          <input type="hidden" name="store_id" value={store.id} />
+          <input
+            type="file"
+            name="file"
+            accept=".csv"
+            required
+            className="w-full text-sm text-gray-600 file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 file:text-sm file:font-medium"
+          />
+          <label className="block text-xs text-gray-500">
+            消費税率（税抜き売上の計算に使用）
+            <select name="tax_rate" defaultValue="0.08" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm">
+              <option value="0.08">8%（テイクアウト・軽減税率）</option>
+              <option value="0.1">10%（イートイン等）</option>
+            </select>
+          </label>
+          <button className="w-full bg-gray-800 text-white py-2.5 rounded-lg text-sm font-medium">
+            アップロードして取り込む
+          </button>
+        </form>
+      </div>
 
       <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
         <h2 className="text-sm font-bold text-gray-700">売上を手入力で追加</h2>
