@@ -87,8 +87,9 @@ export async function computePnl(
   const sgaTotal = sgaCategories.reduce((sum, c) => sum + (amountByCategory.get(c.id) ?? 0), 0)
   const operatingProfit = grossProfit - sgaTotal
 
-  const laborCategory = sgaCategories.find((c) => c.name === '人件費')
-  const laborCost = laborCategory ? amountByCategory.get(laborCategory.id) ?? 0 : 0
+  // 労働分配率の「人件費」は役員報酬＋給料手当の合計（法定福利費・厚生費は含めない）
+  const laborCategories = sgaCategories.filter((c) => c.name === '役員報酬' || c.name === '給料手当')
+  const laborCost = laborCategories.reduce((sum, c) => sum + (amountByCategory.get(c.id) ?? 0), 0)
 
   const ratio = (amount: number) => (netSales === 0 ? null : amount / netSales)
 
