@@ -1,5 +1,6 @@
 import { getSupabaseServerClient } from '@/lib/supabase-server'
 import { getStores, currentMonth } from '@/lib/stores-server'
+import { monthRange } from '@/lib/pnl'
 import MonthStoreNav from '@/app/dashboard/components/MonthStoreNav'
 import { addRegisterClosing } from '@/app/dashboard/actions'
 
@@ -16,12 +17,13 @@ export default async function RegisterClosingsPage({
   if (!store) return <p className="text-gray-400">店舗が登録されていません</p>
 
   const supabase = await getSupabaseServerClient()
+  const { start, end } = monthRange(month)
   const { data: closings } = await supabase
     .from('register_closings')
     .select('*')
     .eq('store_id', store.id)
-    .gte('closing_date', `${month}-01`)
-    .lt('closing_date', `${month}-32`)
+    .gte('closing_date', start)
+    .lt('closing_date', end)
     .order('closing_date', { ascending: false })
 
   return (

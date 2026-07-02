@@ -8,7 +8,7 @@ export type PnlRow = {
   bold?: boolean
 }
 
-function monthRange(month: string) {
+export function monthRange(month: string) {
   // month: 'YYYY-MM'
   const start = `${month}-01`
   const [y, m] = month.split('-').map(Number)

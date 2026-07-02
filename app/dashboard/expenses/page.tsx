@@ -1,5 +1,6 @@
 import { getSupabaseServerClient } from '@/lib/supabase-server'
 import { getStores, currentMonth } from '@/lib/stores-server'
+import { monthRange } from '@/lib/pnl'
 import MonthStoreNav from '@/app/dashboard/components/MonthStoreNav'
 import { addExpense } from '@/app/dashboard/actions'
 
@@ -16,14 +17,15 @@ export default async function ExpensesPage({
   if (!store) return <p className="text-gray-400">店舗が登録されていません</p>
 
   const supabase = await getSupabaseServerClient()
+  const { start, end } = monthRange(month)
   const [{ data: categories }, { data: expenses }] = await Promise.all([
     supabase.from('expense_categories').select('*').order('sort_order'),
     supabase
       .from('expenses')
       .select('*, expense_categories(name)')
       .eq('store_id', store.id)
-      .gte('expense_date', `${month}-01`)
-      .lt('expense_date', `${month}-32`)
+      .gte('expense_date', start)
+      .lt('expense_date', end)
       .order('expense_date', { ascending: false }),
   ])
 

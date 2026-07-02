@@ -1,5 +1,6 @@
 import { getSupabaseServerClient } from '@/lib/supabase-server'
 import { getStores, currentMonth } from '@/lib/stores-server'
+import { monthRange } from '@/lib/pnl'
 import MonthStoreNav from '@/app/dashboard/components/MonthStoreNav'
 import { addSales } from '@/app/dashboard/actions'
 
@@ -16,12 +17,13 @@ export default async function SalesPage({
   if (!store) return <p className="text-gray-400">店舗が登録されていません</p>
 
   const supabase = await getSupabaseServerClient()
+  const { start, end } = monthRange(month)
   const { data: sales } = await supabase
     .from('sales_daily')
     .select('*')
     .eq('store_id', store.id)
-    .gte('sales_date', `${month}-01`)
-    .lt('sales_date', `${month}-32`)
+    .gte('sales_date', start)
+    .lt('sales_date', end)
     .order('sales_date', { ascending: false })
 
   return (
