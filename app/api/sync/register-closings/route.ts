@@ -18,8 +18,16 @@ function parseDate(value: unknown): string | null {
   const s = String(value ?? '').trim()
   // "2026/07/02", "2026-07-02", "2026/7/2" などを YYYY-MM-DD に正規化
   const m = s.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/)
-  if (!m) return null
-  return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
+  if (m) {
+    return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
+  }
+  // スプレッドシートのセルをそのまま読むと "Tue Jun 30 2026 00:00:00 GMT+0900 ..." 形式で来る。
+  // JST基準の日付に変換する（UTC変換すると前日にズレるため+9時間して切り出す）
+  const t = Date.parse(s)
+  if (!Number.isNaN(t)) {
+    return new Date(t + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  }
+  return null
 }
 
 export async function POST(request: NextRequest) {
