@@ -1,0 +1,78 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getSupabaseServiceClient } from '@/lib/supabase-server'
+
+export const runtime = 'nodejs'
+
+// レジ締め報告Googleフォームの送信時に、スプレッドシートのApps Scriptから呼ばれる受け口。
+// 認証は REGISTER_SYNC_SECRET の共有シークレット（x-sync-secretヘッダ）で行う。
+
+function parseAmount(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  const cleaned = String(value).replace(/[¥,，円\s]/g, '')
+  if (cleaned === '') return null
+  const n = Number(cleaned)
+  return Number.isFinite(n) ? Math.round(n) : null
+}
+
+function parseDate(value: unknown): string | null {
+  const s = String(value ?? '').trim()
+  // "2026/07/02", "2026-07-02", "2026/7/2" などを YYYY-MM-DD に正規化
+  const m = s.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/)
+  if (!m) return null
+  return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
+}
+
+export async function POST(request: NextRequest) {
+  const secret = process.env.REGISTER_SYNC_SECRET
+  if (!secret || request.headers.get('x-sync-secret') !== secret) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+
+  const body = await request.json().catch(() => null)
+  if (!body) {
+    return NextResponse.json({ error: 'invalid json' }, { status: 400 })
+  }
+
+  const closingDate = parseDate(body.date)
+  const storeName = String(body.store ?? '').trim()
+  const rowId = String(body.row_id ?? '').trim()
+  if (!closingDate || !storeName || !rowId) {
+    return NextResponse.json(
+      { error: 'date, store, row_id は必須です', received: { date: body.date, store: body.store, row_id: body.row_id } },
+      { status: 400 }
+    )
+  }
+
+  const supabase = getSupabaseServiceClient()
+
+  // フォームの店舗選択肢とstoresテーブルを名前で突き合わせる（前方一致も許容）
+  const { data: stores } = await supabase.from('stores').select('*')
+  const store = (stores ?? []).find(
+    (s) => s.name === storeName || storeName.startsWith(s.name) || s.name.startsWith(storeName)
+  )
+  if (!store) {
+    return NextResponse.json({ error: `店舗が見つかりません: ${storeName}` }, { status: 400 })
+  }
+
+  const { error } = await supabase.from('register_closings').upsert(
+    {
+      store_id: store.id,
+      closing_date: closingDate,
+      opening_change: parseAmount(body.opening_change),
+      adjustment: parseAmount(body.adjustment),
+      over_short: parseAmount(body.over_short),
+      deposit: parseAmount(body.deposit),
+      carried_over: parseAmount(body.carried_over),
+      receipt_photo_url: body.receipt_photo_url ? String(body.receipt_photo_url) : null,
+      staff_name: String(body.staff_name ?? ''),
+      source_row_id: rowId,
+    },
+    { onConflict: 'store_id,closing_date,source_row_id' }
+  )
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ ok: true, store: store.name, date: closingDate })
+}
