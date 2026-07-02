@@ -8,6 +8,8 @@ export const runtime = 'nodejs'
 
 function parseAmount(value: unknown): number | null {
   if (value === null || value === undefined) return null
+  // 「なし」「無し」「ナシ」は0円の意味で入力される運用
+  if (/^(なし|無し|ナシ|無)$/.test(String(value).trim())) return 0
   let s = String(value)
     // 全角数字・全角記号を半角に変換
     .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
