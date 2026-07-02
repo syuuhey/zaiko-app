@@ -8,9 +8,16 @@ export const runtime = 'nodejs'
 
 function parseAmount(value: unknown): number | null {
   if (value === null || value === undefined) return null
-  const cleaned = String(value).replace(/[¥,，円\s]/g, '')
-  if (cleaned === '') return null
-  const n = Number(cleaned)
+  let s = String(value)
+    // 全角数字・全角記号を半角に変換
+    .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+    .replace(/[＋]/g, '+')
+    .replace(/[−ー－]/g, '-')
+    // ▲500 / △500 はマイナス表記
+    .replace(/^[▲△]\s*/, '-')
+    .replace(/[¥￥,，円\s]/g, '')
+  if (s === '' || s === '-' || s === '+') return null
+  const n = Number(s)
   return Number.isFinite(n) ? Math.round(n) : null
 }
 

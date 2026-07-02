@@ -79,6 +79,8 @@ export default async function RegisterClosingsPage({
             <thead>
               <tr className="bg-gray-100 text-gray-500">
                 <th className="text-left px-4 py-2 font-medium">日付</th>
+                <th className="text-right px-4 py-2 font-medium">釣り銭</th>
+                <th className="text-right px-4 py-2 font-medium">修正</th>
                 <th className="text-right px-4 py-2 font-medium">過不足</th>
                 <th className="text-right px-4 py-2 font-medium">預入</th>
                 <th className="text-right px-4 py-2 font-medium">繰越</th>
@@ -89,6 +91,8 @@ export default async function RegisterClosingsPage({
               {(closings ?? []).map((c) => (
                 <tr key={c.id} className="border-t border-gray-50">
                   <td className="px-4 py-2">{c.closing_date}</td>
+                  <td className="px-4 py-2 text-right font-mono">{c.opening_change?.toLocaleString('ja-JP') ?? '-'}</td>
+                  <td className="px-4 py-2 text-right font-mono">{c.adjustment?.toLocaleString('ja-JP') ?? '-'}</td>
                   <td className={`px-4 py-2 text-right font-mono ${c.over_short && c.over_short !== 0 ? 'text-red-500' : ''}`}>
                     {c.over_short?.toLocaleString('ja-JP') ?? '-'}
                   </td>
