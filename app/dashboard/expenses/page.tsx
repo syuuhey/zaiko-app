@@ -2,7 +2,8 @@ import { getSupabaseServerClient } from '@/lib/supabase-server'
 import { getStores, currentMonth } from '@/lib/stores-server'
 import { monthRange } from '@/lib/pnl'
 import MonthStoreNav from '@/app/dashboard/components/MonthStoreNav'
-import { addExpense } from '@/app/dashboard/actions'
+import ConfirmButton from '@/app/dashboard/components/ConfirmButton'
+import { addExpense, updateExpense, deleteExpense } from '@/app/dashboard/actions'
 
 export default async function ExpensesPage({
   searchParams,
@@ -73,34 +74,77 @@ export default async function ExpensesPage({
         </form>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="space-y-2">
         {(expenses ?? []).length === 0 ? (
-          <p className="text-center text-gray-400 py-8 text-sm">この月の経費はまだありません</p>
+          <p className="text-center text-gray-400 py-8 text-sm bg-white rounded-xl shadow-sm">
+            この月の経費はまだありません
+          </p>
         ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-100 text-gray-500">
-                <th className="text-left px-4 py-2 font-medium">日付</th>
-                <th className="text-left px-4 py-2 font-medium">科目</th>
-                <th className="text-left px-4 py-2 font-medium">取引先</th>
-                <th className="text-right px-4 py-2 font-medium">金額</th>
-                <th className="text-left px-4 py-2 font-medium">記録元</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(expenses ?? []).map((e) => (
-                <tr key={e.id} className="border-t border-gray-50">
-                  <td className="px-4 py-2">{e.expense_date}</td>
-                  <td className="px-4 py-2">{e.expense_categories?.name ?? '-'}</td>
-                  <td className="px-4 py-2 text-gray-500">{e.vendor}</td>
-                  <td className="px-4 py-2 text-right font-mono">{e.amount.toLocaleString('ja-JP')}</td>
-                  <td className="px-4 py-2 text-xs text-gray-400">
-                    {e.source === 'line_ocr' ? 'LINE OCR' : '手入力'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          (expenses ?? []).map((e) => (
+            <form key={e.id} action={updateExpense} className="bg-white rounded-xl shadow-sm p-4">
+              <input type="hidden" name="id" value={e.id} />
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-gray-400">
+                  {e.source === 'line_ocr' ? '📷 LINEレシート' : '✏️ 手入力'}
+                  {e.note?.includes('要確認') && (
+                    <span className="ml-2 text-orange-500 font-bold">要確認</span>
+                  )}
+                </span>
+                <ConfirmButton
+                  message="この経費を削除しますか？"
+                  formAction={deleteExpense}
+                  className="text-xs text-red-400 px-2 py-1"
+                >
+                  削除
+                </ConfirmButton>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <label className="text-xs text-gray-500">
+                  日付
+                  <input
+                    type="date"
+                    name="expense_date"
+                    defaultValue={e.expense_date}
+                    className="mt-1 w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-gray-500">
+                  科目
+                  <select
+                    name="category_id"
+                    defaultValue={e.category_id}
+                    className="mt-1 w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"
+                  >
+                    {(categories ?? []).map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="text-xs text-gray-500">
+                  取引先
+                  <input
+                    name="vendor"
+                    defaultValue={e.vendor}
+                    className="mt-1 w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"
+                  />
+                </label>
+                <label className="text-xs text-gray-500">
+                  金額（円）
+                  <input
+                    type="number"
+                    name="amount"
+                    defaultValue={e.amount}
+                    min={0}
+                    className="mt-1 w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm font-mono"
+                  />
+                </label>
+              </div>
+              <input type="hidden" name="note" value={e.note?.replace('要確認（OCR自信度低）', '') ?? ''} />
+              <button className="mt-3 w-full sm:w-auto bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                修正を保存
+              </button>
+            </form>
+          ))
         )}
       </div>
     </div>

@@ -18,6 +18,31 @@ export async function addExpense(formData: FormData) {
   revalidatePath('/dashboard/pnl')
 }
 
+export async function updateExpense(formData: FormData) {
+  const supabase = await getSupabaseServerClient()
+  await supabase
+    .from('expenses')
+    .update({
+      category_id: String(formData.get('category_id')),
+      vendor: String(formData.get('vendor') ?? ''),
+      amount: Number(formData.get('amount')) || 0,
+      expense_date: String(formData.get('expense_date')),
+      note: String(formData.get('note') ?? ''),
+    })
+    .eq('id', String(formData.get('id')))
+  revalidatePath('/dashboard/expenses')
+  revalidatePath('/dashboard/pnl')
+  revalidatePath('/dashboard')
+}
+
+export async function deleteExpense(formData: FormData) {
+  const supabase = await getSupabaseServerClient()
+  await supabase.from('expenses').delete().eq('id', String(formData.get('id')))
+  revalidatePath('/dashboard/expenses')
+  revalidatePath('/dashboard/pnl')
+  revalidatePath('/dashboard')
+}
+
 export async function addSales(formData: FormData) {
   const supabase = await getSupabaseServerClient()
   await supabase.from('sales_daily').upsert(

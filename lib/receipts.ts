@@ -57,12 +57,25 @@ export async function processReceiptImage(
           type: 'object',
           properties: {
             vendor: { type: 'string', description: '店名・取引先名。読み取れなければ空文字' },
-            date: { type: 'string', description: '購入日 YYYY-MM-DD。読み取れなければ空文字' },
+            date: {
+              type: 'string',
+              description:
+                'レシートに印字された日付を YYYY-MM-DD 形式で。和暦は西暦に変換（令和8年=2026年）、「26/07/01」のような2桁年は20xx年として解釈。読み取れなければ空文字',
+            },
             amount: { type: 'integer', description: '合計金額（税込・円）' },
             category: {
               type: 'string',
               enum: categoryNames,
-              description: '最も適切な経費科目。食材・材料・商品の仕入れは「仕入」',
+              description: [
+                '最も適切な経費科目。分類ルール:',
+                '・食材/材料/ドリンク/包材/商品の仕入れ → 仕入',
+                '・駐車場/コインパーキング/電車/バス/タクシー/高速道路 → 旅費交通費',
+                '・ガソリン/洗車/車検 → 車輌費',
+                '・飲食を伴う打合せ/会食 → 交際接待費',
+                '・文房具/掃除用品/雑貨 → 消耗品費',
+                '・電気/ガス/水道 → 水道光熱費',
+                '・どれにも当てはまらない → 雑費',
+              ].join('\n'),
             },
             confidence: {
               type: 'string',
