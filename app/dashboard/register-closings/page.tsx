@@ -30,54 +30,54 @@ export default async function RegisterClosingsPage({
     <div className="space-y-4">
       <MonthStoreNav stores={stores} storeSlug={store.slug} month={month} />
       <p className="text-xs text-gray-400">
-        現状は既存のレジ締め報告フォームと並行しての手入力です。Googleスプレッドシート連携が整うと自動反映に切り替わります。
+        レジ締め報告フォームを送信すると自動でここに反映されます。下のフォームは臨時の手入力用です。
       </p>
 
-      <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+      <div className="bg-white rounded-2xl border border-neutral-200 p-4 space-y-3">
         <h2 className="text-sm font-bold text-gray-700">レジ締め報告を追加</h2>
         <form action={addRegisterClosing} className="grid grid-cols-2 gap-3">
           <input type="hidden" name="store_id" value={store.id} />
           <label className="col-span-2 text-xs text-gray-500">
             日付
-            <input type="date" name="closing_date" defaultValue={`${month}-01`} required className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            <input type="date" name="closing_date" defaultValue={`${month}-01`} required className="mt-1 w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm" />
           </label>
           <label className="text-xs text-gray-500">
             オープン時釣り銭
-            <input type="number" name="opening_change" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            <input type="number" name="opening_change" className="mt-1 w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm" />
           </label>
           <label className="text-xs text-gray-500">
             修正
-            <input type="number" name="adjustment" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            <input type="number" name="adjustment" className="mt-1 w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm" />
           </label>
           <label className="text-xs text-gray-500">
             過不足
-            <input type="number" name="over_short" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            <input type="number" name="over_short" className="mt-1 w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm" />
           </label>
           <label className="text-xs text-gray-500">
             預入
-            <input type="number" name="deposit" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            <input type="number" name="deposit" className="mt-1 w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm" />
           </label>
           <label className="text-xs text-gray-500">
             繰越
-            <input type="number" name="carried_over" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            <input type="number" name="carried_over" className="mt-1 w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm" />
           </label>
           <label className="text-xs text-gray-500">
             担当者
-            <input name="staff_name" className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+            <input name="staff_name" className="mt-1 w-full border border-neutral-200 rounded-lg px-3 py-2 text-sm" />
           </label>
-          <button className="col-span-2 bg-gray-800 text-white py-2.5 rounded-lg text-sm font-medium">
+          <button className="col-span-2 bg-neutral-900 text-white py-2.5 rounded-lg text-sm font-medium">
             追加する
           </button>
         </form>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
         {(closings ?? []).length === 0 ? (
           <p className="text-center text-gray-400 py-8 text-sm">この月のレジ締め報告はまだありません</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-100 text-gray-500">
+              <tr className="bg-neutral-50 text-neutral-400">
                 <th className="text-left px-4 py-2 font-medium">日付</th>
                 <th className="text-right px-4 py-2 font-medium">釣り銭</th>
                 <th className="text-right px-4 py-2 font-medium">修正</th>

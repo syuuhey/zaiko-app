@@ -25,7 +25,7 @@ export default async function DashboardHome() {
           <Link
             key={store.id}
             href={`/dashboard/pnl?store=${store.slug}&month=${month}`}
-            className="bg-white rounded-xl shadow-sm p-4 block hover:shadow-md transition-shadow"
+            className="bg-white rounded-2xl border border-neutral-200 p-4 block hover:border-neutral-400 transition-colors"
           >
             <p className="font-bold text-gray-800">{store.name}</p>
             <div className="mt-2 grid grid-cols-2 gap-2 text-sm">

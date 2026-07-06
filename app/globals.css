@@ -5,7 +5,13 @@
 }
 
 body {
-  background: #f9fafb;
-  color: #111827;
-  font-family: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', Arial, sans-serif;
+  background: #fafafa;
+  color: #171717;
+  font-feature-settings: 'palt';
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }

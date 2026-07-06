@@ -129,11 +129,11 @@ export default function AdminPage() {
   const filtered = items.filter((i) => i.category === tab)
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-teal-700 text-white shadow-md">
+    <div className="min-h-screen bg-neutral-50">
+      <header className="bg-white/90 backdrop-blur border-b border-neutral-200 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-white opacity-80 text-sm">
+            <Link href="/" className="text-neutral-500 text-sm">
               ← 戻る
             </Link>
             <h1 className="text-xl font-bold">商品管理</h1>
@@ -144,7 +144,7 @@ export default function AdminPage() {
               className={`px-3 py-1.5 rounded-full text-sm font-medium ${
                 reorderMode
                   ? 'bg-yellow-400 text-yellow-900'
-                  : 'bg-white/20 text-white'
+                  : 'bg-neutral-100 text-neutral-600'
               }`}
             >
               {reorderMode ? '完了' : '並び替え'}
@@ -152,7 +152,7 @@ export default function AdminPage() {
             {!reorderMode && (
               <button
                 onClick={openNew}
-                className="bg-white text-teal-700 px-3 py-1.5 rounded-full text-sm font-medium"
+                className="bg-neutral-900 text-white px-3.5 py-1.5 rounded-full text-sm font-medium"
               >
                 ＋ 追加
               </button>
@@ -166,13 +166,13 @@ export default function AdminPage() {
         <StoreSwitcher stores={stores} storeId={storeId} onSelect={selectStore} />
 
         {/* カテゴリタブ */}
-        <div className="flex bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="flex bg-white rounded-2xl border border-neutral-200 overflow-hidden">
           {(['食料品', '備品'] as Category[]).map((cat) => (
             <button
               key={cat}
               onClick={() => setTab(cat)}
               className={`flex-1 py-3 text-base font-medium transition-colors ${
-                tab === cat ? 'bg-teal-700 text-white' : 'text-gray-500'
+                tab === cat ? 'bg-neutral-900 text-white' : 'text-gray-500'
               }`}
             >
               {cat} ({items.filter((i) => i.category === cat).length})
@@ -187,7 +187,7 @@ export default function AdminPage() {
             {filtered.map((item, idx) => (
               <div
                 key={item.id}
-                className={`bg-white rounded-xl shadow-sm p-4 flex items-center justify-between ${
+                className={`bg-white rounded-2xl border border-neutral-200 p-4 flex items-center justify-between ${
                   reorderMode ? 'border-2 border-yellow-200' : ''
                 }`}
               >
@@ -363,7 +363,7 @@ export default function AdminPage() {
               <button
                 onClick={saveItem}
                 disabled={saving || !form.name.trim()}
-                className="flex-1 bg-teal-600 text-white py-3 rounded-xl font-medium disabled:opacity-50"
+                className="flex-1 bg-neutral-900 text-white py-3 rounded-xl font-medium disabled:opacity-50"
               >
                 {saving ? '保存中...' : '保存'}
               </button>
@@ -379,7 +379,7 @@ export default function AdminPage() {
       )}
 
       {toast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-3 rounded-xl text-sm shadow-lg">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-neutral-900 text-white px-5 py-3 rounded-xl text-sm shadow-lg">
           {toast}
         </div>
       )}
@@ -388,7 +388,7 @@ export default function AdminPage() {
 }
 
 const inputClass =
-  'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-teal-400'
+  'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-neutral-400'
 
 function Field({
   label,

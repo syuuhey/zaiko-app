@@ -38,7 +38,7 @@ export default async function PnlPage({
       <div className="flex gap-2">
         <a
           href={`/api/pnl/export?store=${store.slug}&month=${month}`}
-          className="text-sm bg-gray-800 text-white px-4 py-2 rounded-lg font-medium"
+          className="text-sm bg-neutral-900 text-white px-4 py-2 rounded-lg font-medium"
         >
           Excelエクスポート
         </a>
@@ -50,10 +50,10 @@ export default async function PnlPage({
         </form>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-100 text-gray-500">
+            <tr className="bg-neutral-50 text-neutral-400">
               <th className="text-left px-4 py-2 font-medium">区分</th>
               <th className="text-left px-4 py-2 font-medium">項目</th>
               <th className="text-right px-4 py-2 font-medium">金額</th>

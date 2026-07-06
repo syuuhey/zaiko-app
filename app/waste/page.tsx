@@ -206,11 +206,11 @@ export default function WastePage() {
   const total = Object.values(counts).reduce((n, c) => n + c, 0)
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-teal-700 text-white shadow-md">
+    <div className="min-h-screen bg-neutral-50">
+      <header className="bg-white/90 backdrop-blur border-b border-neutral-200 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-white opacity-80 text-sm">← 戻る</Link>
+            <Link href="/" className="text-neutral-500 text-sm">← 戻る</Link>
             <h1 className="text-xl font-bold">廃棄記録</h1>
           </div>
         </div>
@@ -223,20 +223,20 @@ export default function WastePage() {
 
         {/* 担当者 */}
         {isEditable && (
-          <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
+          <div className="flex items-center gap-3 bg-white rounded-2xl border border-neutral-200 p-3">
             <span className="text-sm text-gray-500 shrink-0">担当者</span>
             <input
               type="text"
               value={recordedBy}
               onChange={(e) => setRecordedBy(e.target.value)}
-              className="flex-1 text-base border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
+              className="flex-1 text-base border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400"
               placeholder="名前を入力"
             />
           </div>
         )}
 
         {/* 日付ナビ */}
-        <div className="flex items-center justify-between bg-white rounded-xl shadow-sm px-2 py-2">
+        <div className="flex items-center justify-between bg-white rounded-2xl border border-neutral-200 px-2 py-2">
           <button
             onClick={() => setDate(addDays(date, -1))}
             className="px-4 py-2 text-2xl text-gray-400"
@@ -257,13 +257,13 @@ export default function WastePage() {
         </div>
 
         {/* 廃棄数入力リスト */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
           {loading ? (
             <div className="py-10 text-center text-gray-400 text-sm">読み込み中...</div>
           ) : types.length === 0 ? (
             <div className="py-12 text-center text-gray-400 text-sm space-y-2">
               <p>ドーナツの種類が未登録です</p>
-              <button onClick={() => setShowManage(true)} className="text-teal-600 underline">
+              <button onClick={() => setShowManage(true)} className="text-neutral-900 underline">
                 種類を追加する
               </button>
             </div>
@@ -291,7 +291,7 @@ export default function WastePage() {
                         >
                           −
                         </button>
-                        <span className={`w-10 text-center text-2xl font-bold font-mono ${count > 0 ? 'text-teal-700' : 'text-gray-300'}`}>
+                        <span className={`w-10 text-center text-2xl font-bold font-mono ${count > 0 ? 'text-neutral-900' : 'text-gray-300'}`}>
                           {count}
                         </span>
                         <button
@@ -302,7 +302,7 @@ export default function WastePage() {
                         </button>
                       </div>
                     ) : (
-                      <span className={`text-2xl font-bold font-mono ${count > 0 ? 'text-teal-700' : 'text-gray-200'}`}>
+                      <span className={`text-2xl font-bold font-mono ${count > 0 ? 'text-neutral-900' : 'text-gray-200'}`}>
                         {count}
                       </span>
                     )}
@@ -313,7 +313,7 @@ export default function WastePage() {
               {/* 合計 */}
               <div className="px-4 py-3 bg-gray-50 flex items-center justify-between">
                 <span className="text-sm text-gray-500">合計廃棄数</span>
-                <span className="text-xl font-bold text-teal-700 font-mono">
+                <span className="text-xl font-bold text-neutral-900 font-mono">
                   {total}
                   <span className="text-sm font-normal text-gray-400 ml-1">個</span>
                 </span>
@@ -327,26 +327,26 @@ export default function WastePage() {
           <button
             onClick={save}
             disabled={saving}
-            className="w-full bg-teal-600 text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50"
+            className="w-full bg-neutral-900 text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50"
           >
             {saving ? '記録中...' : '廃棄を記録する'}
           </button>
         )}
 
         {/* CSVダウンロード */}
-        <div className="bg-white rounded-xl shadow-sm p-4 space-y-3">
+        <div className="bg-white rounded-2xl border border-neutral-200 p-4 space-y-3">
           <h2 className="text-sm font-bold text-gray-700">CSVダウンロード</h2>
           <div className="flex gap-2 items-center">
             <input
               type="month"
               value={exportMonth}
               onChange={(e) => setExportMonth(e.target.value)}
-              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-teal-400"
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-neutral-400"
             />
             <button
               onClick={downloadCSV}
               disabled={exporting}
-              className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 shrink-0"
+              className="bg-neutral-900 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 shrink-0"
             >
               {exporting ? '準備中...' : 'ダウンロード'}
             </button>
@@ -355,7 +355,7 @@ export default function WastePage() {
         </div>
 
         {/* 種類を管理 */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
           <button
             onClick={() => setShowManage(!showManage)}
             className="w-full px-4 py-3 flex items-center justify-between text-sm text-gray-500"
@@ -383,12 +383,12 @@ export default function WastePage() {
                   onChange={(e) => setNewTypeName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addType()}
                   placeholder="新しい種類名"
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-teal-400"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-neutral-400"
                 />
                 <button
                   onClick={addType}
                   disabled={adding || !newTypeName.trim()}
-                  className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+                  className="bg-neutral-900 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
                 >
                   追加
                 </button>
@@ -400,7 +400,7 @@ export default function WastePage() {
       </div>
 
       {toast && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-5 py-3 rounded-xl text-sm shadow-lg">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-neutral-900 text-white px-5 py-3 rounded-xl text-sm shadow-lg">
           {toast}
         </div>
       )}

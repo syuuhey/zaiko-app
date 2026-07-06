@@ -97,18 +97,18 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-teal-700 text-white shadow-md">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold tracking-wide">在庫管理</h1>
-          <div className="flex gap-2">
-            <Link href="/history" className="text-sm bg-white/20 text-white px-3 py-1.5 rounded-full font-medium">
+    <div className="min-h-screen bg-neutral-50">
+      <header className="bg-white/90 backdrop-blur border-b border-neutral-200 sticky top-0 z-10">
+        <div className="max-w-2xl mx-auto px-4 py-3.5 flex items-center justify-between">
+          <h1 className="text-lg font-bold tracking-tight text-neutral-900">在庫管理</h1>
+          <div className="flex gap-1.5">
+            <Link href="/history" className="text-sm text-neutral-600 px-3 py-1.5 rounded-full font-medium hover:bg-neutral-100 transition-colors">
               履歴
             </Link>
-            <Link href="/waste" className="text-sm bg-white/20 text-white px-3 py-1.5 rounded-full font-medium">
+            <Link href="/waste" className="text-sm text-neutral-600 px-3 py-1.5 rounded-full font-medium hover:bg-neutral-100 transition-colors">
               廃棄
             </Link>
-            <Link href="/admin" className="text-sm bg-white text-teal-700 px-3 py-1.5 rounded-full font-medium">
+            <Link href="/admin" className="text-sm bg-neutral-900 text-white px-3.5 py-1.5 rounded-full font-medium">
               管理
             </Link>
           </div>
@@ -120,13 +120,13 @@ export default function Home() {
         <StoreSwitcher stores={stores} storeId={storeId} onSelect={selectStore} />
 
         {/* 担当者 */}
-        <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm">
+        <div className="flex items-center gap-3 bg-white rounded-2xl border border-neutral-200 p-3">
           <span className="text-sm text-gray-500 shrink-0">担当者</span>
           <input
             type="text"
             value={checkedBy}
             onChange={(e) => setCheckedBy(e.target.value)}
-            className="flex-1 text-base border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
+            className="flex-1 text-base border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400"
             placeholder="名前を入力"
           />
         </div>
@@ -151,13 +151,13 @@ export default function Home() {
         )}
 
         {/* カテゴリタブ */}
-        <div className="flex bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="flex bg-white rounded-2xl border border-neutral-200 overflow-hidden">
           {(['食料品', '備品'] as Category[]).map((cat) => (
             <button
               key={cat}
               onClick={() => { setCategory(cat); setSupplier('すべて') }}
               className={`flex-1 py-3 text-base font-medium transition-colors ${
-                category === cat ? 'bg-teal-700 text-white' : 'text-gray-500'
+                category === cat ? 'bg-neutral-900 text-white' : 'text-gray-500'
               }`}
             >
               {cat}
@@ -167,7 +167,7 @@ export default function Home() {
 
         {/* 仕入先フィルター */}
         {!loading && (
-          <div className="bg-white rounded-xl shadow-sm p-3">
+          <div className="bg-white rounded-2xl border border-neutral-200 p-3">
             <p className="text-xs text-gray-400 mb-2">仕入先で絞り込み</p>
             <div className="flex flex-wrap gap-2">
               {suppliers.map((s) => (
@@ -176,7 +176,7 @@ export default function Home() {
                   onClick={() => setSupplier(s)}
                   className={`text-sm px-3 py-1.5 rounded-full font-medium transition-colors ${
                     supplier === s
-                      ? 'bg-teal-700 text-white'
+                      ? 'bg-neutral-900 text-white'
                       : 'bg-gray-100 text-gray-600'
                   }`}
                 >
@@ -193,7 +193,7 @@ export default function Home() {
         ) : (
           <div className="space-y-2">
             {filtered.map((item) => (
-              <div key={item.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <div key={item.id} className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
                 {editingId === item.id ? (
                   <div className="p-4 space-y-3">
                     <p className="font-medium text-gray-800">{item.name}</p>
@@ -213,7 +213,7 @@ export default function Home() {
                           value={editStock}
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => setEditStock(Math.max(0, Number(e.target.value) || 0))}
-                          className="w-20 text-center text-xl font-bold border border-gray-200 rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-teal-400"
+                          className="w-20 text-center text-xl font-bold border border-gray-200 rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400"
                         />
                         <button
                           onClick={() => setEditStock(editStock + 1)}
@@ -228,7 +228,7 @@ export default function Home() {
                       <button
                         onClick={() => saveStock(item)}
                         disabled={saving}
-                        className="flex-1 bg-teal-600 text-white py-3 rounded-xl font-medium text-base disabled:opacity-50"
+                        className="flex-1 bg-neutral-900 text-white py-3 rounded-xl font-medium text-base disabled:opacity-50"
                       >
                         保存
                       </button>

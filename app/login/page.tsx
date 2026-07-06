@@ -7,8 +7,8 @@ export default function LoginPage() {
   const [state, formAction, pending] = useActionState(signIn, null)
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-sm p-6 space-y-5">
+    <div className="min-h-screen bg-neutral-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-sm bg-white rounded-2xl border border-neutral-200 p-6 space-y-5">
         <div className="text-center space-y-1">
           <h1 className="text-xl font-bold text-gray-800">店長ログイン</h1>
           <p className="text-xs text-gray-400">売上・経費・損益計算書はこちらから</p>
@@ -21,7 +21,7 @@ export default function LoginPage() {
               type="email"
               name="email"
               required
-              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-gray-400"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-neutral-400"
             />
           </div>
           <div className="space-y-1">
@@ -30,7 +30,7 @@ export default function LoginPage() {
               type="password"
               name="password"
               required
-              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-gray-400"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-neutral-400"
             />
           </div>
 
@@ -41,7 +41,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={pending}
-            className="w-full bg-gray-800 text-white py-3 rounded-xl font-medium disabled:opacity-50"
+            className="w-full bg-neutral-900 text-white py-3 rounded-xl font-medium disabled:opacity-50"
           >
             {pending ? 'ログイン中...' : 'ログイン'}
           </button>
