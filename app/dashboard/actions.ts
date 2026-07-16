@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { getSupabaseServerClient } from '@/lib/supabase-server'
 
 export async function addExpense(formData: FormData) {
@@ -20,7 +21,7 @@ export async function addExpense(formData: FormData) {
 
 export async function updateExpense(formData: FormData) {
   const supabase = await getSupabaseServerClient()
-  await supabase
+  const { data, error } = await supabase
     .from('expenses')
     .update({
       category_id: String(formData.get('category_id')),
@@ -30,9 +31,18 @@ export async function updateExpense(formData: FormData) {
       note: String(formData.get('note') ?? ''),
     })
     .eq('id', String(formData.get('id')))
+    .select('id')
   revalidatePath('/dashboard/expenses')
   revalidatePath('/dashboard/pnl')
   revalidatePath('/dashboard')
+
+  // 保存結果をバナー表示するため、結果ステータス付きで一覧へリダイレクト
+  const storeSlug = String(formData.get('store_slug') ?? '')
+  const viewMonth = String(formData.get('view_month') ?? '')
+  const failed = error || !data || data.length === 0
+  redirect(
+    `/dashboard/expenses?store=${storeSlug}&month=${viewMonth}&status=${failed ? 'err' : 'saved'}`
+  )
 }
 
 export async function deleteExpense(formData: FormData) {

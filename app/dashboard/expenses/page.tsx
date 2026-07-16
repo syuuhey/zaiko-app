@@ -8,7 +8,7 @@ import { addExpense, updateExpense, deleteExpense } from '@/app/dashboard/action
 export default async function ExpensesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ store?: string; month?: string }>
+  searchParams: Promise<{ store?: string; month?: string; status?: string }>
 }) {
   const params = await searchParams
   const stores = await getStores()
@@ -38,6 +38,17 @@ export default async function ExpensesPage({
   return (
     <div className="space-y-4">
       <MonthStoreNav stores={stores} storeSlug={store.slug} month={month} />
+
+      {params.status === 'saved' && (
+        <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5">
+          ✅ 保存しました
+        </p>
+      )}
+      {params.status === 'err' && (
+        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
+          ⚠️ 保存できませんでした。ページを再読み込みしてもう一度お試しください。繰り返し失敗する場合は一度ログアウトして、ログインし直してください。
+        </p>
+      )}
 
       <p className="text-xs">
         {showAll ? (
@@ -103,6 +114,8 @@ export default async function ExpensesPage({
           (expenses ?? []).map((e) => (
             <form key={e.id} action={updateExpense} className="bg-white rounded-2xl border border-neutral-200 p-4">
               <input type="hidden" name="id" value={e.id} />
+              <input type="hidden" name="store_slug" value={store.slug} />
+              <input type="hidden" name="view_month" value={showAll ? 'all' : month} />
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-gray-400">
                   {e.source === 'line_ocr' ? '📷 LINEレシート' : '✏️ 手入力'}
