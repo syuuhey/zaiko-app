@@ -1,8 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/line/notify-low-stock",
-      "schedule": "0 0 * * *"
-    }
-  ]
-}
+{}
