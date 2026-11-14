@@ -107,7 +107,7 @@ export default function HistoryPage() {
                       {log.items?.name ?? '不明'}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {formatDate(log.checked_at)} · {log.checked_by}
+                      {formatDate(log.checked_at)} · {log.checked_by}{log.note === '入荷' && ' · 入荷'}
                     </p>
                   </div>
                   <div className="text-right shrink-0 ml-3">

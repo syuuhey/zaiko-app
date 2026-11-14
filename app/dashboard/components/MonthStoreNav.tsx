@@ -6,15 +6,17 @@ import type { Store } from '@/lib/supabase'
 type Props = {
   stores: Store[]
   storeSlug: string
-  month: string
+  month?: string
 }
 
 export default function MonthStoreNav({ stores, storeSlug, month }: Props) {
   const router = useRouter()
   const pathname = usePathname()
 
-  function go(nextStore: string, nextMonth: string) {
-    router.push(`${pathname}?store=${nextStore}&month=${nextMonth}`)
+  function go(nextStore: string, nextMonth?: string) {
+    const params = new URLSearchParams({ store: nextStore })
+    if (nextMonth !== undefined) params.set('month', nextMonth)
+    router.push(`${pathname}?${params}`)
   }
 
   return (
@@ -32,12 +34,14 @@ export default function MonthStoreNav({ stores, storeSlug, month }: Props) {
           </button>
         ))}
       </div>
-      <input
-        type="month"
-        value={month}
-        onChange={(e) => go(storeSlug, e.target.value)}
-        className="border border-neutral-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-400"
-      />
+      {month !== undefined && (
+        <input
+          type="month"
+          value={month}
+          onChange={(e) => go(storeSlug, e.target.value)}
+          className="border border-neutral-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-gray-400"
+        />
+      )}
     </div>
   )
 }
