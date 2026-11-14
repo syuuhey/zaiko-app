@@ -114,7 +114,9 @@ export default function AdminPage() {
       .delete({ count: 'exact' })
       .eq('id', item.id)
     if (error || !count) {
-      showToast('削除できませんでした（商品の削除は店長ログインが必要です）')
+      showToast(error?.code === '23503'
+        ? '発注・棚卸の履歴があるため削除できません'
+        : '削除できませんでした（商品の削除は店長ログインが必要です）')
       return
     }
     setItems((prev) => prev.filter((i) => i.id !== item.id))

@@ -9,6 +9,7 @@ import Link from 'next/link'
 export default function Home() {
   const { stores, storeId, selectStore } = useStoreSelection()
   const [items, setItems] = useState<Item[]>([])
+  const [openOrderItems, setOpenOrderItems] = useState<{ storeId: string; ids: Set<string> } | null>(null)
   const [category, setCategory] = useState<Category>('食料品')
   const [supplier, setSupplier] = useState<string>('すべて')
   const [loading, setLoading] = useState(true)
@@ -34,6 +35,20 @@ export default function Home() {
     if (data) setItems(data)
     setLoading(false)
   }
+
+  useEffect(() => {
+    if (!storeId) return
+    let active = true
+
+    async function fetchOpenOrderItems() {
+      const { data } = await getSupabaseClient()
+        .rpc('open_order_item_ids', { p_store_id: storeId })
+      if (active) setOpenOrderItems({ storeId, ids: new Set(Array.isArray(data) ? data : []) })
+    }
+
+    void fetchOpenOrderItems()
+    return () => { active = false }
+  }, [storeId])
 
   const suppliers = ['すべて', ...Array.from(new Set(items.map((i) => i.supplier).filter(Boolean))).sort()]
 
@@ -252,6 +267,9 @@ export default function Home() {
                       )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
+                      {openOrderItems?.storeId === storeId && openOrderItems.ids.has(item.id) && (
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">発注済</span>
+                      )}
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stockColor(item)}`}>
                         {stockLabel(item)}
                       </span>
