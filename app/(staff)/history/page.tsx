@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { getSupabaseClient } from '@/lib/supabase'
 import { useStaff } from '../staff-layout'
-import Link from 'next/link'
 
 type Log = {
   id: string
@@ -50,7 +49,7 @@ export default function HistoryPage() {
 
   function diffColor(before: number, after: number) {
     if (after > before) return 'text-green-600'
-    if (after < before) return 'text-red-500'
+    if (after < before) return 'text-orange-800'
     return 'text-gray-400'
   }
 
@@ -62,25 +61,19 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <header className="bg-white/90 backdrop-blur border-b border-neutral-200 sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Link href="/" className="text-neutral-500 text-sm">← 戻る</Link>
-          <h1 className="text-xl font-bold">チェック履歴</h1>
-        </div>
-      </header>
-
-      <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
+    <main className="space-y-4 px-4 py-5">
+      <h1 className="text-2xl font-bold">チェック履歴</h1>
+      <div className="space-y-3">
         {/* 担当者フィルター */}
         {!loading && staffList.length > 1 && (
-          <div className="bg-white rounded-2xl border border-neutral-200 p-3">
+          <div className="bg-white rounded-xl border border-neutral-200 p-3">
             <p className="text-xs text-gray-400 mb-2">担当者で絞り込み</p>
             <div className="flex flex-wrap gap-2">
               {staffList.map((s) => (
                 <button
                   key={s}
                   onClick={() => setFilterStaff(s)}
-                  className={`text-sm px-3 py-1.5 rounded-full font-medium transition-colors ${
+                  className={`min-h-11 rounded-lg px-3 text-sm font-medium transition-colors ${
                     filterStaff === s ? 'bg-neutral-900 text-white' : 'bg-gray-100 text-gray-600'
                   }`}
                 >
@@ -98,7 +91,7 @@ export default function HistoryPage() {
         ) : (
           <div className="space-y-2">
             {filtered.map((log) => (
-              <div key={log.id} className="bg-white rounded-2xl border border-neutral-200 p-4">
+              <div key={log.id} className="bg-white rounded-xl border border-neutral-200 p-4">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="font-medium text-gray-800 text-base">
@@ -122,6 +115,6 @@ export default function HistoryPage() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   )
 }

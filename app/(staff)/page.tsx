@@ -28,6 +28,7 @@ export default function HomePage() {
     async function load() {
       const [stock, waste] = await Promise.all([
         supabase.from('stock_logs').select('checked_at').eq('store_id', storeId)
+          .or('note.is.null,note.neq.入荷')
           .order('checked_at', { ascending: false }).limit(1).abortSignal(controller.signal),
         supabase.from('waste_logs').select('id').eq('store_id', storeId)
           .gte('wasted_at', `${today}T00:00:00`).lt('wasted_at', `${addDays(today, 1)}T00:00:00`)
