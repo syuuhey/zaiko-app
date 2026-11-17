@@ -12,31 +12,35 @@ export function useStoreSelection() {
   const [storeId, setStoreId] = useState<string>('')
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchStores()
-  }, [])
+  const [error, setError] = useState(false)
 
-  async function fetchStores() {
-    setLoading(true)
-    const sb = getSupabaseClient()
-    const { data } = await sb
-      .from('stores')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order')
-    if (data) {
-      setStores(data)
-      const saved = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
-      const initial = data.find((s) => s.id === saved)?.id ?? data[0]?.id ?? ''
-      setStoreId(initial)
+  useEffect(() => {
+    const controller = new AbortController()
+    async function fetchStores() {
+      const { data, error } = await getSupabaseClient()
+        .from('stores')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order')
+        .abortSignal(controller.signal)
+
+      if (controller.signal.aborted) return
+      if (data) {
+        setStores(data)
+        const saved = localStorage.getItem(STORAGE_KEY)
+        setStoreId(data.find((store) => store.id === saved)?.id ?? data[0]?.id ?? '')
+      }
+      setError(!!error)
+      setLoading(false)
     }
-    setLoading(false)
-  }
+    void fetchStores()
+    return () => controller.abort()
+  }, [])
 
   function selectStore(id: string) {
     setStoreId(id)
     if (typeof window !== 'undefined') localStorage.setItem(STORAGE_KEY, id)
   }
 
-  return { stores, storeId, selectStore, loading }
+  return { stores, storeId, selectStore, loading, error }
 }

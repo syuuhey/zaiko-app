@@ -16,8 +16,10 @@ export default function StoreSwitcher({ stores, storeId, onSelect }: Props) {
       {stores.map((s) => (
         <button
           key={s.id}
+          type="button"
+          aria-pressed={storeId === s.id}
           onClick={() => onSelect(s.id)}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
+          className={`min-h-11 min-w-0 flex-1 px-2 py-2 text-sm font-medium transition-colors ${
             storeId === s.id ? 'bg-neutral-900 text-white' : 'text-gray-500'
           }`}
         >

@@ -1,23 +1,10 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { getSupabaseClient, type DonutType } from '@/lib/supabase'
-import { useStoreSelection } from '@/lib/stores'
-import StoreSwitcher from '@/app/components/StoreSwitcher'
+import { addDays, getBusinessDateStr, getLocalDateStr } from '@/lib/business-date'
+import { useStaff } from '../staff-layout'
 import Link from 'next/link'
-
-function getLocalDateStr(date: Date = new Date()) {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
-
-function addDays(dateStr: string, days: number) {
-  const d = new Date(dateStr + 'T00:00:00')
-  d.setDate(d.getDate() + days)
-  return getLocalDateStr(d)
-}
 
 function formatDateLabel(dateStr: string) {
   const today = getLocalDateStr()
@@ -27,19 +14,14 @@ function formatDateLabel(dateStr: string) {
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 
-// 0時まで営業のため、深夜0時〜朝4時59分の間は前日を「営業日」として扱う
-function getBusinessDateStr() {
-  return getLocalDateStr(new Date(Date.now() - 5 * 60 * 60 * 1000))
-}
-
 export default function WastePage() {
-  const { stores, storeId, selectStore } = useStoreSelection()
+  const { storeId, staffName } = useStaff()
   const [types, setTypes] = useState<DonutType[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [date, setDate] = useState(getBusinessDateStr())
-  const [recordedBy, setRecordedBy] = useState('スタッフ')
   const [saving, setSaving] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [loadedDate, setLoadedDate] = useState<string | null>(null)
+  const loading = date !== loadedDate
   const [toast, setToast] = useState<string | null>(null)
   const [showManage, setShowManage] = useState(false)
   const [newTypeName, setNewTypeName] = useState('')
@@ -51,53 +33,72 @@ export default function WastePage() {
   const isEditable = date >= getBusinessDateStr() && date <= getLocalDateStr()
   const isLatestDay = date >= getLocalDateStr()
 
-  const fetchTypes = useCallback(async () => {
-    if (!storeId) return
-    const sb = getSupabaseClient()
-    const { data } = await sb
-      .from('donut_types')
-      .select('*')
-      .eq('store_id', storeId)
-      .order('sort_order', { nullsFirst: false })
-      .order('created_at')
-    if (data) setTypes(data)
-  }, [storeId])
+  const [typesRevision, setTypesRevision] = useState(0)
 
-  const fetchCounts = useCallback(async () => {
+  useEffect(() => {
     if (!storeId) return
-    setLoading(true)
-    const sb = getSupabaseClient()
-    const { data } = await sb
-      .from('waste_logs')
-      .select('donut_type_id, quantity')
-      .eq('store_id', storeId)
-      .gte('wasted_at', `${date}T00:00:00`)
-      .lte('wasted_at', `${date}T23:59:59`)
-    const c: Record<string, number> = {}
-    data?.forEach((log) => {
-      c[log.donut_type_id] = (c[log.donut_type_id] || 0) + log.quantity
-    })
-    setCounts(c)
-    setLoading(false)
+    const controller = new AbortController()
+    async function load() {
+      const { data } = await getSupabaseClient()
+        .from('donut_types')
+        .select('*')
+        .eq('store_id', storeId)
+        .order('sort_order', { nullsFirst: false })
+        .order('created_at')
+        .abortSignal(controller.signal)
+      if (!controller.signal.aborted && data) setTypes(data)
+    }
+    void load()
+    return () => controller.abort()
+  }, [storeId, typesRevision])
+
+  useEffect(() => {
+    if (!storeId) return
+    const controller = new AbortController()
+    async function load() {
+      const { data } = await getSupabaseClient()
+        .from('waste_logs')
+        .select('donut_type_id, quantity')
+        .eq('store_id', storeId)
+        .gte('wasted_at', `${date}T00:00:00`)
+        .lte('wasted_at', `${date}T23:59:59`)
+        .abortSignal(controller.signal)
+      if (controller.signal.aborted) return
+      const counts: Record<string, number> = {}
+      data?.forEach((log) => {
+        counts[log.donut_type_id] = (counts[log.donut_type_id] || 0) + log.quantity
+      })
+      setCounts(counts)
+      setLoadedDate(date)
+    }
+    void load()
+    return () => controller.abort()
   }, [date, storeId])
-
-  useEffect(() => { fetchTypes() }, [fetchTypes])
-  useEffect(() => { fetchCounts() }, [fetchCounts])
 
   function setCount(id: string, value: number) {
     setCounts((prev) => ({ ...prev, [id]: Math.max(0, value) }))
   }
 
   async function save() {
+    if (!staffName) {
+      showToast('画面上部で担当者名を保存してください')
+      return
+    }
     setSaving(true)
     const sb = getSupabaseClient()
 
-    await sb
+    const { error: deleteError } = await sb
       .from('waste_logs')
       .delete()
       .eq('store_id', storeId)
       .gte('wasted_at', `${date}T00:00:00`)
       .lte('wasted_at', `${date}T23:59:59`)
+
+    if (deleteError) {
+      showToast('廃棄を記録できませんでした')
+      setSaving(false)
+      return
+    }
 
     // 深夜0時過ぎの保存でも選択中の営業日に記録が入るよう、日時を明示する
     const records = types
@@ -106,13 +107,18 @@ export default function WastePage() {
         donut_type_id: t.id,
         donut_type_name: t.name,
         quantity: counts[t.id],
-        recorded_by: recordedBy,
+        recorded_by: staffName,
         store_id: storeId,
         wasted_at: `${date}T12:00:00`,
       }))
 
     if (records.length > 0) {
-      await sb.from('waste_logs').insert(records)
+      const { error } = await sb.from('waste_logs').insert(records)
+      if (error) {
+        showToast('廃棄を記録できませんでした。入力した内容でもう一度保存してください')
+        setSaving(false)
+        return
+      }
     }
 
     showToast('廃棄を記録しました')
@@ -120,16 +126,21 @@ export default function WastePage() {
   }
 
   async function addType() {
-    if (!newTypeName.trim()) return
+    if (!storeId || !newTypeName.trim()) return
     setAdding(true)
     const sb = getSupabaseClient()
     const maxOrder = types.reduce((max, t) => Math.max(max, t.sort_order ?? 0), 0)
-    await sb
+    const { error } = await sb
       .from('donut_types')
       .insert({ name: newTypeName.trim(), sort_order: maxOrder + 1, store_id: storeId })
-    setNewTypeName('')
-    await fetchTypes()
     setAdding(false)
+    if (error) {
+      showToast('種類を追加できませんでした')
+      return
+    }
+    setNewTypeName('')
+    setTypesRevision((revision) => revision + 1)
+    showToast('種類を追加しました')
   }
 
   async function deleteType(id: string) {
@@ -217,23 +228,6 @@ export default function WastePage() {
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-
-        {/* 店舗切り替え */}
-        <StoreSwitcher stores={stores} storeId={storeId} onSelect={selectStore} />
-
-        {/* 担当者 */}
-        {isEditable && (
-          <div className="flex items-center gap-3 bg-white rounded-2xl border border-neutral-200 p-3">
-            <span className="text-sm text-gray-500 shrink-0">担当者</span>
-            <input
-              type="text"
-              value={recordedBy}
-              onChange={(e) => setRecordedBy(e.target.value)}
-              className="flex-1 text-base border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400"
-              placeholder="名前を入力"
-            />
-          </div>
-        )}
 
         {/* 日付ナビ */}
         <div className="flex items-center justify-between bg-white rounded-2xl border border-neutral-200 px-2 py-2">
@@ -326,7 +320,7 @@ export default function WastePage() {
         {isEditable && types.length > 0 && (
           <button
             onClick={save}
-            disabled={saving}
+            disabled={saving || loading}
             className="w-full bg-neutral-900 text-white py-4 rounded-xl font-bold text-lg disabled:opacity-50"
           >
             {saving ? '記録中...' : '廃棄を記録する'}

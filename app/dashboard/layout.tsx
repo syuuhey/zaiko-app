@@ -7,7 +7,6 @@ const NAV = [
   { href: '/dashboard', label: 'サマリー' },
   { href: '/dashboard/pnl', label: '損益計算書' },
   { href: '/dashboard/expenses', label: '経費' },
-  { href: '/dashboard/orders', label: '発注' },
   { href: '/dashboard/sales', label: '売上' },
   { href: '/dashboard/register-closings', label: 'レジ締め' },
 ]
