@@ -3,17 +3,10 @@
 import { useEffect, useState } from 'react'
 import { getSupabaseClient, type Category, type Item } from '@/lib/supabase'
 import { useStaff } from '../staff-layout'
+import { updateStock, writeStockLog, type StockLogInput } from '../stock-write'
 import { buttonClass, QuantityInput, readQuantity } from '../ui'
 
-type PendingLog = {
-  id: string
-  item_id: string
-  store_id: string
-  checked_by: string
-  stock_before: number
-  stock_after: number
-}
-type Change = { value: string; pendingLog?: PendingLog; error?: string }
+type Change = { value: string; pendingLog?: StockLogInput; error?: string }
 
 const categories: Category[] = ['備品', '食料品']
 const leaveMessage = '保存が完了していない変更があります。移動しますか？'
@@ -70,7 +63,6 @@ function StockList({ initialItems }: { initialItems: Item[] }) {
 
     setSaving(true)
     setMessage('')
-    const supabase = getSupabaseClient()
     const next = { ...changes }
     let saved = 0
     const stocks = new Map<string, number>()
@@ -86,20 +78,15 @@ function StockList({ initialItems }: { initialItems: Item[] }) {
           continue
         }
 
-        const updated = await supabase.from('items').update({ stock: quantity })
-          .eq('id', item.id).eq('store_id', storeId).eq('stock', item.stock).select('id').maybeSingle()
-        if (updated.error || !updated.data) {
-          next[item.id] = { ...draft, error: updated.error ? '在庫を更新できませんでした。' : '在庫が別の場所で変更されました。再読み込みして確認してください。' }
+        const updated = await updateStock(item, quantity, staffName)
+        if (updated.error !== undefined) {
+          next[item.id] = { ...draft, error: updated.error }
           continue
         }
-        log = {
-          id: crypto.randomUUID(), item_id: item.id, store_id: storeId, checked_by: staffName,
-          stock_before: item.stock, stock_after: quantity,
-        }
+        log = updated.log
       }
 
-      const { error } = await supabase.from('stock_logs').insert(log)
-      if (error && error.code !== '23505') {
+      if (!await writeStockLog(log)) {
         next[item.id] = { ...draft, pendingLog: log, error: '在庫は更新済み・履歴は未記録。もう一度保存すると履歴を再試行します。' }
         continue
       }
