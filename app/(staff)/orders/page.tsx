@@ -13,7 +13,7 @@ const dateTime = new Intl.DateTimeFormat('ja-JP', { dateStyle: 'short', timeStyl
 const secondaryButton = 'inline-flex min-h-11 items-center justify-center rounded-lg border border-neutral-300 px-3 text-sm font-bold disabled:opacity-50'
 
 function initialQuantity(item: Item) {
-  return item.ideal_stock === 0 ? 1 : Math.max(item.ideal_stock - item.stock, 0)
+  return Math.max(item.ideal_stock - item.stock, 1)
 }
 
 export default function OrdersPage() {
