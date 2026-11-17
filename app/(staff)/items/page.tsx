@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { getSupabaseClient, type Item, type Category } from '@/lib/supabase'
-import { useStoreSelection } from '@/lib/stores'
-import StoreSwitcher from '@/app/components/StoreSwitcher'
+import { useStaff } from '../staff-layout'
 import Link from 'next/link'
 
 const EMPTY_FORM = {
@@ -19,9 +18,9 @@ const EMPTY_FORM = {
 }
 
 export default function AdminPage() {
-  const { stores, storeId, selectStore } = useStoreSelection()
-  const [items, setItems] = useState<Item[]>([])
-  const [loading, setLoading] = useState(true)
+  const { items: catalog, storeId, reloadItems } = useStaff()
+  const items = catalog ?? []
+  const loading = catalog === null
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -29,23 +28,6 @@ export default function AdminPage() {
   const [toast, setToast] = useState<string | null>(null)
   const [tab, setTab] = useState<Category>('食料品')
   const [reorderMode, setReorderMode] = useState(false)
-
-  useEffect(() => {
-    if (storeId) fetchItems()
-  }, [storeId])
-
-  async function fetchItems() {
-    setLoading(true)
-    const sb = getSupabaseClient()
-    const { data } = await sb
-      .from('items')
-      .select('*')
-      .eq('store_id', storeId)
-      .order('sort_order', { nullsFirst: false })
-      .order('name')
-    if (data) setItems(data)
-    setLoading(false)
-  }
 
   function openNew() {
     setForm(EMPTY_FORM)
@@ -80,30 +62,30 @@ export default function AdminPage() {
     const bOrder = b.sort_order ?? targetIdx
 
     const sb = getSupabaseClient()
-    await Promise.all([
+    const results = await Promise.all([
       sb.from('items').update({ sort_order: bOrder }).eq('id', a.id),
       sb.from('items').update({ sort_order: aOrder }).eq('id', b.id),
     ])
-    await fetchItems()
+    showToast(results.some((result) => result.error) ? '並び順を保存できない商品があります' : '並び順を保存しました')
+    reloadItems()
   }
 
   async function saveItem() {
-    if (!form.name.trim()) return
+    if (!storeId || !form.name.trim()) return
     setSaving(true)
     const sb = getSupabaseClient()
-    if (editingId) {
-      const { error } = await sb.from('items').update(form).eq('id', editingId)
-      if (!error) showToast('更新しました')
-    } else {
-      const maxOrder = items.reduce((max, i) => Math.max(max, i.sort_order ?? 0), 0)
-      const { error } = await sb
-        .from('items')
-        .insert({ ...form, sort_order: maxOrder + 1, store_id: storeId })
-      if (!error) showToast('追加しました')
-    }
-    setShowForm(false)
+    const maxOrder = items.reduce((max, item) => Math.max(max, item.sort_order ?? 0), 0)
+    const { error } = editingId
+      ? await sb.from('items').update(form).eq('id', editingId)
+      : await sb.from('items').insert({ ...form, sort_order: maxOrder + 1, store_id: storeId })
     setSaving(false)
-    fetchItems()
+    if (error) {
+      showToast('商品を保存できませんでした')
+      return
+    }
+    showToast(editingId ? '更新しました' : '追加しました')
+    setShowForm(false)
+    reloadItems()
   }
 
   async function deleteItem(item: Item) {
@@ -119,7 +101,7 @@ export default function AdminPage() {
         : '削除できませんでした（商品の削除は店長ログインが必要です）')
       return
     }
-    setItems((prev) => prev.filter((i) => i.id !== item.id))
+    reloadItems()
     showToast('削除しました')
   }
 
@@ -164,9 +146,6 @@ export default function AdminPage() {
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-        {/* 店舗切り替え */}
-        <StoreSwitcher stores={stores} storeId={storeId} onSelect={selectStore} />
-
         {/* カテゴリタブ */}
         <div className="flex bg-white rounded-2xl border border-neutral-200 overflow-hidden">
           {(['食料品', '備品'] as Category[]).map((cat) => (

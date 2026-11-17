@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { getSupabaseClient } from '@/lib/supabase'
-import { useStoreSelection } from '@/lib/stores'
-import StoreSwitcher from '@/app/components/StoreSwitcher'
+import { useStaff } from '../staff-layout'
 import Link from 'next/link'
 
 type Log = {
@@ -17,27 +16,29 @@ type Log = {
 }
 
 export default function HistoryPage() {
-  const { stores, storeId, selectStore } = useStoreSelection()
+  const { storeId } = useStaff()
   const [logs, setLogs] = useState<Log[]>([])
   const [loading, setLoading] = useState(true)
   const [filterStaff, setFilterStaff] = useState('すべて')
 
   useEffect(() => {
-    if (storeId) fetchLogs()
+    if (!storeId) return
+    const controller = new AbortController()
+    async function load() {
+      const { data } = await getSupabaseClient()
+        .from('stock_logs')
+        .select('*, items(name, unit)')
+        .eq('store_id', storeId)
+        .order('checked_at', { ascending: false })
+        .limit(200)
+        .abortSignal(controller.signal)
+      if (controller.signal.aborted) return
+      if (data) setLogs(data as Log[])
+      setLoading(false)
+    }
+    void load()
+    return () => controller.abort()
   }, [storeId])
-
-  async function fetchLogs() {
-    setLoading(true)
-    const sb = getSupabaseClient()
-    const { data } = await sb
-      .from('stock_logs')
-      .select('*, items(name, unit)')
-      .eq('store_id', storeId)
-      .order('checked_at', { ascending: false })
-      .limit(200)
-    if (data) setLogs(data as Log[])
-    setLoading(false)
-  }
 
   const staffList = ['すべて', ...Array.from(new Set(logs.map((l) => l.checked_by))).sort()]
   const filtered = filterStaff === 'すべて' ? logs : logs.filter((l) => l.checked_by === filterStaff)
@@ -70,9 +71,6 @@ export default function HistoryPage() {
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-        {/* 店舗切り替え */}
-        <StoreSwitcher stores={stores} storeId={storeId} onSelect={selectStore} />
-
         {/* 担当者フィルター */}
         {!loading && staffList.length > 1 && (
           <div className="bg-white rounded-2xl border border-neutral-200 p-3">
